@@ -1,6 +1,6 @@
 .{
     .name = .vibra,
-    .fingerprint = 0x8af0d2935a707070,
+    .fingerprint = 0x9a710f0fe2951e11,
     .version = "0.1.0",
     .minimum_zig_version = "0.16.0",
     .dependencies = .{},
