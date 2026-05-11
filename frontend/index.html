@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://127.0.0.1:5173 ws://127.0.0.1:5173" />
+    <title>VIBRA</title>
+  </head>
+  <body>
+    <div id="app">
+      <header class="app-header">
+        <h1>VIBRA // MODULAR_SYNTH</h1>
+        <div class="toolbar">
+          <button id="btn-start">[ START_AUDIO ]</button>
+          <button id="btn-add-osc">[ +OSC ]</button>
+          <button id="btn-add-gain">[ +GAIN ]</button>
+          <button id="btn-add-filter">[ +FILTER ]</button>
+          <button id="btn-clear">[ CLEAR ]</button>
+        </div>
+      </header>
+      <div class="app-body">
+        <aside class="palette" id="palette">
+          <h2>MODULES</h2>
+          <div class="palette-list" id="palette-list"></div>
+          <h2>PLUGINS</h2>
+          <div class="plugin-list" id="plugin-list">
+            <p class="hint">DROP .JS FILES INTO frontend/src/plugins/ TO LOAD</p>
+          </div>
+        </aside>
+        <main class="graph-container" id="graph-container">
+          <svg class="cables" id="cables"></svg>
+          <div class="modules-layer" id="modules-layer"></div>
+        </main>
+      </div>
+      <footer class="app-footer">
+        <div id="keyboard"></div>
+        <canvas id="scope" width="320" height="96"></canvas>
+        <div class="status">
+          <span id="bridge-status">CHECKING...</span>
+        </div>
+      </footer>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
