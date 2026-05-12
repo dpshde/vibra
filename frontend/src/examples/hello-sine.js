@@ -14,10 +14,10 @@ export function loadHelloSine(patchBay, graph) {
   patchBay.connect(gainId, 'out', scopeId, 'in')
   patchBay.connect(gainId, 'out', destId, 'in')
 
-  graph.addModule(oscId, patchBay.modules.get(oscId).manifest, 120, 120)
-  graph.addModule(gainId, patchBay.modules.get(gainId).manifest, 360, 120)
-  graph.addModule(scopeId, patchBay.modules.get(scopeId).manifest, 360, 360)
-  graph.addModule(destId, patchBay.modules.get(destId).manifest, 600, 120)
+  graph.addModule(oscId, patchBay.modules.get(oscId).manifest)
+  graph.addModule(gainId, patchBay.modules.get(gainId).manifest)
+  graph.addModule(scopeId, patchBay.modules.get(scopeId).manifest)
+  graph.addModule(destId, patchBay.modules.get(destId).manifest)
 
   graph.redrawCables()
 }

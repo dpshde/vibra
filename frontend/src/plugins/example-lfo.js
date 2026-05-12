@@ -1,33 +1,37 @@
 /**
- * Example Vibra Plugin: Simple LFO
- * Drop this file into frontend/src/plugins/ and it auto-loads on next build.
+ * Example Vibra Plugin: Simple LFO (control-rate)
+ *
+ * In the Rust engine architecture, JS plugins without a `kind` field are
+ * control-rate only — they run on the main thread and can send parameter
+ * changes via the patch bay. Audio-rate DSP lives in Rust/Wasm.
  */
 
 export default {
-  id: 'example-lfo',
-  name: 'LFO',
-  category: 'source',
-  inputs: [
-    { id: 'rate', name: 'Rate', type: 'audio-param', param: 'frequency' }
-  ],
-  outputs: [
-    { id: 'out', name: 'Out', type: 'audio' }
-  ],
+  id: "example-lfo",
+  name: "LFO",
+  category: "source",
+  inputs: [],
+  outputs: [],
   parameters: [
-    { id: 'frequency', name: 'Rate', type: 'float', min: 0.1, max: 20, step: 0.1, default: 2 }
+    {
+      id: "frequency",
+      name: "Rate",
+      type: "float",
+      min: 0.1,
+      max: 20,
+      step: 0.1,
+      default: 2,
+    },
   ],
-  create(ctx) {
-    const osc = ctx.createOscillator()
-    osc.type = 'sine'
-    osc.frequency.value = 2
-    osc.start()
-    return osc
+  create() {
+    // Control-rate plugin: no audio node needed
+    return null;
   },
   update(node, params) {
-    node.frequency.setValueAtTime(params.frequency, node.context.currentTime)
+    // Here you could schedule parameter modulations on other modules
+    // via the global patchBay reference, or emit events.
+    // For now, just log the rate change.
+    // console.log('LFO rate:', params.frequency);
   },
-  destroy(node) {
-    node.stop()
-    node.disconnect()
-  }
-}
+  destroy() {},
+};

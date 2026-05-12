@@ -1,0 +1,347 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibra.dev/schema/open-synth-patch-0.1.0.json",
+  "title": "Open Synth Patch",
+  "description": "A portable interchange format for synthesizer patches. Designed to capture semantic meaning, graph topology, and modulation while preserving round-trip fidelity via vendor extensions.",
+  "type": "object",
+  "required": ["format", "version", "modules"],
+  "properties": {
+    "format": {
+      "const": "open-synth-patch",
+      "description": "Format identifier."
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^0\\.",
+      "description": "Schema version, e.g. '0.1.0'."
+    },
+    "metadata": {
+      "$ref": "#/$defs/Metadata"
+    },
+    "voice": {
+      "$ref": "#/$defs/VoiceArchitecture"
+    },
+    "modules": {
+      "type": "array",
+      "description": "Synth modules (oscillators, filters, envelopes, etc.).",
+      "items": {
+        "$ref": "#/$defs/Module"
+      },
+      "minItems": 1
+    },
+    "connections": {
+      "type": "array",
+      "description": "Physical or logical signal connections between modules (modular graph).",
+      "items": {
+        "$ref": "#/$defs/Connection"
+      }
+    },
+    "modMatrix": {
+      "type": "array",
+      "description": "Abstract modulation routes for matrix-based synths.",
+      "items": {
+        "$ref": "#/$defs/ModRoute"
+      }
+    },
+    "macros": {
+      "type": "array",
+      "description": "Performance macros / performance controls.",
+      "items": {
+        "$ref": "#/$defs/Macro"
+      }
+    },
+    "vendorExtensions": {
+      "type": "object",
+      "description": "Opaque vendor-specific data. Keys should use reverse-DNS notation, e.g. 'com.vibra'."
+    }
+  },
+  "$defs": {
+    "Metadata": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "author": { "type": "string" },
+        "description": { "type": "string" },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "category": {
+          "enum": [
+            "bass",
+            "lead",
+            "pad",
+            "percussion",
+            "fx",
+            "keys",
+            "sequence",
+            "template",
+            "other"
+          ]
+        },
+        "created": { "type": "string", "format": "date-time" },
+        "modified": { "type": "string", "format": "date-time" },
+        "targetSynth": {
+          "type": "string",
+          "description": "Name/ID of the synth this patch was originally authored for."
+        },
+        "schemaUri": {
+          "type": "string",
+          "format": "uri",
+          "description": "Canonical URI of the schema this document conforms to."
+        }
+      }
+    },
+    "VoiceArchitecture": {
+      "type": "object",
+      "description": "Voice-level configuration independent of modules.",
+      "properties": {
+        "mode": {
+          "enum": [
+            "mono",
+            "poly",
+            "unison",
+            "legato",
+            "paraphonic",
+            "multitimbral",
+            "drum"
+          ],
+          "description": "Voice allocation mode."
+        },
+        "polyphony": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum simultaneous voices."
+        },
+        "unisonCount": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of stacked oscillators per voice in unison mode."
+        },
+        "unisonDetune": {
+          "type": "number",
+          "description": "Detune amount in cents."
+        },
+        "pitchBendRange": {
+          "type": "number",
+          "description": "Pitch bend range in semitones."
+        },
+        "tuning": {
+          "type": "object",
+          "description": "Global tuning offsets or scale definitions.",
+          "additionalProperties": true
+        }
+      }
+    },
+    "Module": {
+      "type": "object",
+      "required": ["id", "kind"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable identifier unique within this patch."
+        },
+        "kind": {
+          "enum": [
+            "oscillator",
+            "filter",
+            "amplifier",
+            "envelope",
+            "lfo",
+            "noise",
+            "mixer",
+            "effect",
+            "sequencer",
+            "output",
+            "macroSource",
+            "other"
+          ],
+          "description": "Semantic module category."
+        },
+        "vendorKind": {
+          "type": "string",
+          "description": "Vendor-specific module identifier for round-tripping."
+        },
+        "label": {
+          "type": "string",
+          "description": "Display name for this instance."
+        },
+        "parameters": {
+          "type": "array",
+          "description": "Core parameters expressed semantically where possible.",
+          "items": {
+            "$ref": "#/$defs/Parameter"
+          }
+        },
+        "vendorParameters": {
+          "type": "object",
+          "description": "Vendor-specific parameters not covered by the core schema.",
+          "additionalProperties": true
+        },
+        "definitionUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to a JSON manifest describing this module's ports, parameters, and behavior. Required for non-standard modules (kind: other or unregistered vendorKind)."
+        },
+        "position": {
+          "type": "object",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" }
+          }
+        }
+      }
+    },
+    "Parameter": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Parameter identifier (should match manifest param id where applicable)."
+        },
+        "label": { "type": "string" },
+        "semantic": {
+          "description": "Human-meaningful value (Hz, seconds, dB, enum string, etc.)."
+        },
+        "semanticUnit": {
+          "enum": [
+            "hz",
+            "khz",
+            "ms",
+            "s",
+            "db",
+            "percent",
+            "semitones",
+            "cents",
+            "ratio",
+            "midiNote",
+            "enum",
+            "boolean",
+            "none"
+          ],
+          "description": "Unit of the semantic value."
+        },
+        "normalized": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Value normalized to 0..1 range for portability."
+        },
+        "native": {
+          "description": "Raw native value as stored by the target synth (e.g. SysEx byte, vendor float)."
+        },
+        "nativeRange": {
+          "type": "object",
+          "properties": {
+            "min": {},
+            "max": {},
+            "step": { "type": "number" }
+          }
+        }
+      }
+    },
+    "Connection": {
+      "type": "object",
+      "required": ["source", "target"],
+      "description": "A cable or signal route between two modules.",
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "Source module id."
+        },
+        "sourceOutput": {
+          "type": "string",
+          "description": "Source output port id (omit for single-output modules)."
+        },
+        "target": {
+          "type": "string",
+          "description": "Target module id."
+        },
+        "targetInput": {
+          "type": "string",
+          "description": "Target input port id (omit for single-input modules)."
+        },
+        "amount": {
+          "type": "number",
+          "description": "Attenuation/boost in dB or linear multiplier, if applicable."
+        },
+        "amountNormalized": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Connection strength normalized 0..1."
+        }
+      }
+    },
+    "ModRoute": {
+      "type": "object",
+      "required": ["source", "destination"],
+      "description": "An abstract modulation assignment for matrix-style synths.",
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "Modulation source module id or macro id."
+        },
+        "sourceOutput": {
+          "type": "string",
+          "description": "Specific output/port of the source."
+        },
+        "destination": {
+          "type": "string",
+          "description": "Target module id."
+        },
+        "destinationParam": {
+          "type": "string",
+          "description": "Target parameter id within the destination module."
+        },
+        "amount": {
+          "type": "number",
+          "description": "Modulation depth in semantic units where defined."
+        },
+        "amountNormalized": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1,
+          "description": "Modulation depth normalized -1..1."
+        },
+        "curve": {
+          "enum": ["linear", "exponential", "logarithmic", "sCurve"],
+          "description": "Response curve of the modulation."
+        }
+      }
+    },
+    "Macro": {
+      "type": "object",
+      "required": ["id", "label"],
+      "description": "A performance control (mod wheel, aftertouch, macro knob, etc.).",
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "normalized": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Stored macro value, if saved with the patch."
+        },
+        "assignments": {
+          "type": "array",
+          "description": "Internal routing of this macro to parameters.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "targetModule": { "type": "string" },
+              "targetParam": { "type": "string" },
+              "amountNormalized": {
+                "type": "number",
+                "minimum": -1,
+                "maximum": 1
+              }
+            },
+            "required": ["targetModule", "targetParam"]
+          }
+        }
+      }
+    }
+  }
+}

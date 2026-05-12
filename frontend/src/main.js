@@ -2,11 +2,23 @@ import "./styles.css";
 import { getAudioContext, resumeContext } from "./synth/audio-context.js";
 import { PatchBay } from "./synth/patch-bay.js";
 import { BuiltinRegistry } from "./synth/registry.js";
+import { EngineBridge } from "./synth/engine-bridge.js";
 import { NodeGraph } from "./ui/graph.js";
 import { renderPalette } from "./ui/palette.js";
 import { createKeyboard } from "./ui/keyboard.js";
 import { loadHelloSine } from "./examples/hello-sine.js";
+import { loadPluckSynth } from "./examples/pluck-synth.js";
+import { loadTremoloPad } from "./examples/tremolo-pad.js";
+import { loadEchoPluck } from "./examples/echo-pluck.js";
+import { loadNoisePercussion } from "./examples/noise-perc.js";
 import { loadPlugins } from "./plugin/sdk.js";
+import { exportOSP, importOSP } from "./patch-format/osp.js";
+import {
+  message as dialogMessage,
+  open as openDialog,
+  save as saveDialog,
+} from "@tauri-apps/plugin-dialog";
+import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 
 // Built-in manifests
 import oscManifest from "./synth/builtins/oscillator.js";
@@ -14,6 +26,11 @@ import gainManifest from "./synth/builtins/gain.js";
 import filterManifest from "./synth/builtins/filter.js";
 import scopeManifest from "./synth/builtins/scope.js";
 import destManifest from "./synth/builtins/destination.js";
+import lfoManifest from "./synth/builtins/lfo.js";
+import noiseManifest from "./synth/builtins/noise.js";
+import envManifest from "./synth/builtins/envelope.js";
+import delayManifest from "./synth/builtins/delay.js";
+import multManifest from "./synth/builtins/multiplier.js";
 
 const registry = new BuiltinRegistry();
 registry.register(oscManifest);
@@ -21,122 +38,326 @@ registry.register(gainManifest);
 registry.register(filterManifest);
 registry.register(scopeManifest);
 registry.register(destManifest);
+registry.register(lfoManifest);
+registry.register(noiseManifest);
+registry.register(envManifest);
+registry.register(delayManifest);
+registry.register(multManifest);
 
 let ctx = null;
 let patchBay = null;
 let graph = null;
+let bridge = null;
+let runtimeSilent = false;
 
-function initAudio() {
+function updatePatchWarning() {
+  const banner = document.getElementById("patch-warning");
+  if (!banner) return;
+  if (runtimeSilent) {
+    banner.textContent =
+      "Output is silent after note. Check that an Oscillator or Noise module is connected to the Destination.";
+    banner.classList.remove("hidden");
+    return;
+  }
+  const staticWarning = patchBay ? patchBay.validatePatch() : null;
+  if (staticWarning) {
+    banner.textContent = staticWarning;
+    banner.classList.remove("hidden");
+  } else {
+    banner.classList.add("hidden");
+  }
+}
+
+function isTauriRuntime() {
+  return typeof window !== "undefined" && !!window.__TAURI_INTERNALS__;
+}
+
+async function showErrorDialog(message) {
+  if (isTauriRuntime()) {
+    await dialogMessage(message, {
+      title: "Vibra",
+      kind: "error",
+    });
+    return;
+  }
+  window.alert(message);
+}
+
+async function ensurePatchEditorReady() {
+  await initAudio();
+  if (!patchBay || !graph) {
+    throw new Error("Patch editor is not initialized.");
+  }
+}
+
+function clearCurrentPatch() {
+  if (!patchBay || !graph) return;
+  for (const id of Array.from(patchBay.modules.keys())) {
+    graph.removeModule(id);
+  }
+  runtimeSilent = false;
+  updatePatchWarning();
+}
+
+function renderImportedPatch(result) {
+  for (const { vibraId, manifest } of result.modules) {
+    graph.addModule(vibraId, manifest);
+  }
+  graph.redrawCables();
+  updatePatchWarning();
+}
+
+function makePatchFilename(name) {
+  return (
+    (name || "patch").replace(/[^a-z0-9]/gi, "_").toLowerCase() + ".osp.json"
+  );
+}
+
+async function exportCurrentPatch() {
+  await ensurePatchEditorReady();
+
+  const patch = exportOSP(patchBay, { name: "Vibra Patch" });
+  const jsonText = JSON.stringify(patch, null, 2);
+  const fileName = makePatchFilename(patch.metadata?.name);
+
+  if (isTauriRuntime()) {
+    const path = await saveDialog({
+      defaultPath: fileName,
+      filters: [{ name: "Open Synth Patch", extensions: ["json"] }],
+    });
+    if (!path) return;
+    await writeTextFile(path, jsonText);
+    return;
+  }
+
+  const blob = new Blob([jsonText], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function importPatchFromText(text) {
+  await ensurePatchEditorReady();
+  const patch = JSON.parse(text);
+  clearCurrentPatch();
+  const result = importOSP(patchBay, registry, patch);
+  renderImportedPatch(result);
+}
+
+async function initAudio() {
   if (ctx) return;
   ctx = getAudioContext();
-  resumeContext();
+  window.ctx = ctx;
+  await resumeContext();
 
-  patchBay = new PatchBay(ctx, registry);
+  bridge = new EngineBridge(ctx);
+  try {
+    await bridge.init();
+  } catch (err) {
+    console.error("BRIDGE INIT FAILED:", err);
+    await showErrorDialog(
+      "Failed to load Wasm DSP. Run `pnpm wasm-dev` first.",
+    );
+    return;
+  }
 
-  const container = document.getElementById("graph-container");
+  if (ctx.state !== "running") {
+    console.warn(
+      "[VIBRA] AudioContext state is",
+      ctx.state,
+      "— attempting resume…",
+    );
+    await ctx.resume();
+    console.log("[VIBRA] AudioContext state after resume:", ctx.state);
+  } else {
+    console.log("[VIBRA] AudioContext state:", ctx.state);
+  }
+
+  const masterGain = ctx.createGain();
+  masterGain.gain.value = 3.0;
+  bridge.getWorkletNode().connect(masterGain);
+  masterGain.connect(ctx.destination);
+
+  const analyser = ctx.createAnalyser();
+  analyser.fftSize = 2048;
+  masterGain.connect(analyser);
+  window.workletNode = bridge.getWorkletNode();
+  window.analyser = analyser;
+  window.masterGain = masterGain;
+
+  bridge.getWorkletNode().onprocessorerror = (err) => {
+    console.error("[VIBRA] Processor error:", err);
+  };
+
+  patchBay = new PatchBay(bridge, registry);
+
+  const container = document.getElementById("rack-grid");
   const cablesSvg = document.getElementById("cables");
-  const modulesLayer = document.getElementById("modules-layer");
+  const modulesLayer = document.getElementById("rack-grid");
   graph = new NodeGraph(container, cablesSvg, modulesLayer, patchBay);
 
-  // Default patch
-  loadHelloSine(patchBay, graph);
+  bridge.onSilentWarning = () => {
+    runtimeSilent = true;
+    updatePatchWarning();
+  };
+  bridge.onSilentResolved = () => {
+    runtimeSilent = false;
+    updatePatchWarning();
+  };
+  graph.onConnectionChange = () => updatePatchWarning();
 
-  // Palette
+  const arrangeButton = document.getElementById("btn-arrange");
+  arrangeButton.onclick = () => {
+    graph.arrangeModulesByIO();
+  };
+
+  const snapButton = document.getElementById("btn-snap");
+  const renderSnapButton = () => {
+    snapButton.textContent = graph.snapEnabled ? "snap on" : "snap off";
+    snapButton.setAttribute("aria-pressed", String(graph.snapEnabled));
+  };
+  snapButton.onclick = () => {
+    graph.setSnapEnabled(!graph.snapEnabled);
+    renderSnapButton();
+  };
+  renderSnapButton();
+
+  loadHelloSine(patchBay, graph);
+  updatePatchWarning();
+
   const palette = document.getElementById("palette-list");
   renderPalette(palette, registry, (manifest) => {
     const id = patchBay.addModule(manifest);
-    const x = 80 + Math.random() * 300;
-    const y = 80 + Math.random() * 300;
-    graph.addModule(id, manifest, x, y);
+    graph.addModule(id, manifest);
+    updatePatchWarning();
   });
 
-  // Toolbar
-  document.getElementById("btn-add-osc").onclick = () => {
-    const id = patchBay.addModule(registry.get("builtin-osc"));
-    graph.addModule(id, registry.get("builtin-osc"), 80, 80);
-  };
-  document.getElementById("btn-add-gain").onclick = () => {
-    const id = patchBay.addModule(registry.get("builtin-gain"));
-    graph.addModule(id, registry.get("builtin-gain"), 80, 80);
-  };
-  document.getElementById("btn-add-filter").onclick = () => {
-    const id = patchBay.addModule(registry.get("builtin-filter"));
-    graph.addModule(id, registry.get("builtin-filter"), 80, 80);
-  };
-  document.getElementById("btn-clear").onclick = () => {
-    for (const id of Array.from(patchBay.modules.keys())) {
-      graph.removeModule(id);
-    }
-  };
+  const exampleSelect = document.getElementById("example-select");
+  if (exampleSelect) {
+    exampleSelect.onchange = async () => {
+      const val = exampleSelect.value;
+      if (!val) return;
+      if (!ctx) {
+        await initAudio();
+        const startBtn = document.getElementById("btn-start");
+        startBtn.textContent = "audio on";
+        startBtn.disabled = true;
+      }
+      for (const id of Array.from(patchBay.modules.keys())) {
+        graph.removeModule(id);
+      }
+      runtimeSilent = false;
+      switch (val) {
+        case "hello":
+          loadHelloSine(patchBay, graph);
+          break;
+        case "pluck":
+          loadPluckSynth(patchBay, graph);
+          break;
+        case "tremolo":
+          loadTremoloPad(patchBay, graph);
+          break;
+        case "echo":
+          loadEchoPluck(patchBay, graph);
+          break;
+        case "perc":
+          loadNoisePercussion(patchBay, graph);
+          break;
+      }
+      updatePatchWarning();
+      exampleSelect.value = "";
+    };
+  }
 
-  // Virtual keyboard
   const keyboardContainer = document.getElementById("keyboard");
-  let activeOsc = null;
   createKeyboard(
     keyboardContainer,
-    (note, freq) => {
-      if (activeOsc) {
-        activeOsc.stop();
-        activeOsc.disconnect();
-      }
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.frequency.value = freq;
-      gain.gain.value = 0.2;
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      activeOsc = osc;
-    },
-    (note) => {
-      if (activeOsc) {
-        activeOsc.stop();
-        activeOsc.disconnect();
-        activeOsc = null;
-      }
-    },
+    (note, freq) => bridge.noteOn(note, 0.8),
+    (note) => bridge.noteOff(note),
   );
 
-  // Scope
   const scopeCanvas = document.getElementById("scope");
   const scopeCtx = scopeCanvas.getContext("2d");
   function drawScope() {
     requestAnimationFrame(drawScope);
-    for (const mod of patchBay.modules.values()) {
-      if (mod.manifest.id === "builtin-scope") {
-        const analyser = mod.node;
-        const data = new Uint8Array(analyser.frequencyBinCount);
-        analyser.getByteTimeDomainData(data);
-        scopeCtx.fillStyle = "#000000";
-        scopeCtx.fillRect(0, 0, 320, 96);
-        scopeCtx.strokeStyle = "#00ff41";
-        scopeCtx.lineWidth = 2;
-        scopeCtx.beginPath();
-        for (let i = 0; i < data.length; i++) {
-          const x = (i / data.length) * 320;
-          const y = (data[i] / 255) * 96;
-          if (i === 0) scopeCtx.moveTo(x, y);
-          else scopeCtx.lineTo(x, y);
-        }
-        scopeCtx.stroke();
-        break;
-      }
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteTimeDomainData(data);
+    scopeCtx.fillStyle = "#111111";
+    scopeCtx.fillRect(0, 0, 320, 96);
+    scopeCtx.strokeStyle = "#ff5500";
+    scopeCtx.lineWidth = 2;
+    scopeCtx.beginPath();
+    for (let i = 0; i < data.length; i++) {
+      const x = (i / data.length) * 320;
+      const y = (data[i] / 255) * 96;
+      if (i === 0) scopeCtx.moveTo(x, y);
+      else scopeCtx.lineTo(x, y);
     }
+    scopeCtx.stroke();
   }
   drawScope();
 
-  // Bridge status
   const bridgeStatus = document.getElementById("bridge-status");
-  const hasBridge = typeof window !== "undefined" && Boolean(window.zero);
-  bridgeStatus.textContent = hasBridge ? "BRIDGE OK" : "NO BRIDGE";
+  bridgeStatus.textContent = "BRIDGE OK";
 }
 
-document.getElementById("btn-start").onclick = () => {
-  initAudio();
-  document.getElementById("btn-start").textContent = "[ AUDIO ON ]";
+document.getElementById("btn-start").onclick = async () => {
+  await initAudio();
+  document.getElementById("btn-start").textContent = "audio on";
   document.getElementById("btn-start").disabled = true;
 };
 
-// Auto-load dynamic plugins
+document.getElementById("btn-clear").onclick = async () => {
+  await ensurePatchEditorReady();
+  clearCurrentPatch();
+};
+
+document.getElementById("btn-export").onclick = async () => {
+  try {
+    await exportCurrentPatch();
+  } catch (err) {
+    console.error("Export failed:", err);
+    await showErrorDialog("Export failed: " + err.message);
+  }
+};
+
+const fileInput = document.getElementById("file-import");
+document.getElementById("btn-import").onclick = async () => {
+  try {
+    if (isTauriRuntime()) {
+      const selected = await openDialog({
+        multiple: false,
+        filters: [{ name: "Open Synth Patch", extensions: ["json"] }],
+      });
+      if (!selected || Array.isArray(selected)) return;
+      const text = await readTextFile(selected);
+      await importPatchFromText(text);
+      return;
+    }
+    fileInput.click();
+  } catch (err) {
+    console.error("Import failed:", err);
+    await showErrorDialog("Import failed: " + err.message);
+  }
+};
+
+fileInput.onchange = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    await importPatchFromText(text);
+  } catch (err) {
+    console.error("Import failed:", err);
+    await showErrorDialog("Import failed: " + err.message);
+  }
+  fileInput.value = "";
+};
+
 const pluginModules = import.meta.glob("./plugins/*.js");
 loadPlugins(pluginModules);

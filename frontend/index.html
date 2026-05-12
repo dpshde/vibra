@@ -1,45 +1,70 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://127.0.0.1:5173 ws://127.0.0.1:5173" />
-    <title>VIBRA</title>
-  </head>
-  <body>
-    <div id="app">
-      <header class="app-header">
-        <h1>VIBRA // MODULAR_SYNTH</h1>
-        <div class="toolbar">
-          <button id="btn-start">[ START_AUDIO ]</button>
-          <button id="btn-add-osc">[ +OSC ]</button>
-          <button id="btn-add-gain">[ +GAIN ]</button>
-          <button id="btn-add-filter">[ +FILTER ]</button>
-          <button id="btn-clear">[ CLEAR ]</button>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta
+            http-equiv="Content-Security-Policy"
+            content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://127.0.0.1:5173 ws://127.0.0.1:5173"
+        />
+        <title>VIBRA // MODULAR_SYNTH</title>
+    </head>
+    <body>
+        <div id="app">
+            <header class="app-header">
+                <div class="brand">
+                    <span class="label">content overview</span>
+                    <h1>vibra</h1>
+                </div>
+                <div class="toolbar">
+                    <button id="btn-start">start audio</button>
+                    <select id="example-select" class="example-select">
+                        <option value="">load example</option>
+                        <option value="hello">simple sine</option>
+                        <option value="pluck">pluck synth</option>
+                        <option value="tremolo">tremolo pad</option>
+                        <option value="echo">echo pluck</option>
+                        <option value="perc">noise hi-hat</option>
+                    </select>
+                    <button id="btn-arrange">arrange</button>
+                    <button id="btn-snap" aria-pressed="true">snap on</button>
+                    <button id="btn-clear">clear</button>
+                    <button id="btn-export">export</button>
+                    <button id="btn-import">import</button>
+                    <input
+                        type="file"
+                        id="file-import"
+                        accept=".json,.osp.json"
+                        style="display: none"
+                    />
+                </div>
+            </header>
+            <div id="patch-warning" class="patch-warning hidden"></div>
+            <div class="app-body">
+                <aside class="palette" id="palette">
+                    <h2>modules</h2>
+                    <div class="palette-list" id="palette-list"></div>
+                    <h2>plugins</h2>
+                    <div class="plugin-list" id="plugin-list">
+                        <p class="hint">
+                            drop .js files into frontend/src/plugins/ to load
+                        </p>
+                    </div>
+                </aside>
+                <main class="rack-container" id="rack-container">
+                    <div class="rack-grid" id="rack-grid">
+                        <svg class="cables" id="cables"></svg>
+                    </div>
+                </main>
+            </div>
+            <footer class="app-footer">
+                <div id="keyboard"></div>
+                <canvas id="scope" width="320" height="96"></canvas>
+                <div class="status">
+                    <span id="bridge-status">CHECKING...</span>
+                </div>
+            </footer>
         </div>
-      </header>
-      <div class="app-body">
-        <aside class="palette" id="palette">
-          <h2>MODULES</h2>
-          <div class="palette-list" id="palette-list"></div>
-          <h2>PLUGINS</h2>
-          <div class="plugin-list" id="plugin-list">
-            <p class="hint">DROP .JS FILES INTO frontend/src/plugins/ TO LOAD</p>
-          </div>
-        </aside>
-        <main class="graph-container" id="graph-container">
-          <svg class="cables" id="cables"></svg>
-          <div class="modules-layer" id="modules-layer"></div>
-        </main>
-      </div>
-      <footer class="app-footer">
-        <div id="keyboard"></div>
-        <canvas id="scope" width="320" height="96"></canvas>
-        <div class="status">
-          <span id="bridge-status">CHECKING...</span>
-        </div>
-      </footer>
-    </div>
-    <script type="module" src="/src/main.js"></script>
-  </body>
+        <script type="module" src="/src/main.js"></script>
+    </body>
 </html>

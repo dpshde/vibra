@@ -3,7 +3,14 @@
 zig-out/
 zig-cache/
 
-# Frontend
+# Rust / Cargo
+target/
+
+# Tauri
+frontend/src-tauri/target/
+
+# Node
+node_modules/
 frontend/node_modules/
 frontend/dist/
 
