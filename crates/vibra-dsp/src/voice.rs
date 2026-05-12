@@ -232,7 +232,6 @@ impl VoiceAllocator {
                         VoiceMode::Mono => {
                             if self.last_note == Some(note) {
                                 self.voices[0].gate = 0.0;
-                                self.voices[0].active = false;
                                 self.last_note = None;
                                 changes.push(VoiceChange {
                                     voice_index: 0,
@@ -248,7 +247,6 @@ impl VoiceAllocator {
                                 self.legato_gate = false;
                                 self.legato_note = None;
                                 self.voices[0].gate = 0.0;
-                                self.voices[0].active = false;
                                 changes.push(VoiceChange {
                                     voice_index: 0,
                                     note,
@@ -262,7 +260,6 @@ impl VoiceAllocator {
                             for (i, voice) in self.voices.iter_mut().enumerate() {
                                 if voice.active && voice.note == note {
                                     voice.gate = 0.0;
-                                    voice.active = false;
                                     changes.push(VoiceChange {
                                         voice_index: i,
                                         note,
@@ -270,7 +267,6 @@ impl VoiceAllocator {
                                         gate: 0.0,
                                         freq: voice.freq,
                                     });
-                                    break;
                                 }
                             }
                         }

@@ -117,11 +117,6 @@ impl Graph {
         let source_scope = source_scope.unwrap();
         let target_scope = target_scope.unwrap();
 
-        // Global -> PerVoice is not allowed
-        if source_scope == VoiceScope::Global && target_scope == VoiceScope::PerVoice {
-            return;
-        }
-
         // Validate ports using manifest
         if let (Some(sm), Some(tm)) = (self.module_manifests.get(sidx).and_then(|m| *m), self.module_manifests.get(tidx).and_then(|m| *m)) {
             if (source_port as usize) >= sm.outputs.len() || (target_port as usize) >= tm.inputs.len() {
@@ -285,36 +280,68 @@ impl Graph {
                         }
                     }
                 }
+                (Some(VoiceScope::Global), Some(VoiceScope::PerVoice)) => {
+                    unsafe {
+                        let src_opt = (*global_ptr.add(sidx)).as_ref();
+                        if let Some(src) = src_opt {
+                            if conn.source_port < src.outputs.len() {
+                                let src_buf = &src.outputs[conn.source_port];
+                                for v in 0..voice_states.len().min(self.max_voices) {
+                                    if !voice_states[v].active { continue; }
+                                    let dst_vec = &mut *voice_ptr.add(tidx);
+                                    if let Some(dst) = dst_vec.get_mut(v).and_then(|n| n.as_mut()) {
+                                        if conn.target_port < dst.inputs.len() {
+                                            let dst_buf = &mut dst.inputs[conn.target_port];
+                                            for i in 0..frames {
+                                                dst_buf[i] += src_buf[i];
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 _ => {}
             }
         }
 
-        // Update voice state and process per-voice modules
+        // Update voice state on all per-voice modules
         let active_count = voice_states.len().min(self.max_voices);
         for v in 0..active_count {
             let vs = &voice_states[v];
-            if !vs.active { continue; }
-
-            // Set voice state on all per-voice modules for this voice
             for voice_vec in &mut self.voice_nodes {
                 if let Some(node) = voice_vec.get_mut(v).and_then(|n| n.as_mut()) {
                     node.module.set_voice(vs.freq, vs.gate, vs.velocity);
                 }
             }
+        }
 
-            // Process all per-voice modules for this voice
-            for voice_vec in &mut self.voice_nodes {
-                if let Some(node) = voice_vec.get_mut(v).and_then(|n| n.as_mut()) {
-                    let input_refs: Vec<&[f32]> =
-                        node.inputs.iter().map(|b| &b[..frames]).collect();
-                    let mut output_refs: Vec<&mut [f32]> =
-                        node.outputs.iter_mut().map(|b| &mut b[..frames]).collect();
-                    node.module.process(&input_refs, &mut output_refs, frames);
+        // Update global modules with the first active voice (or silent if none)
+        let mut any_active = false;
+        let mut first_active_freq = 440.0f32;
+        let mut first_active_gate = 0.0f32;
+        let mut first_active_vel = 0.0f32;
+        for v in 0..active_count {
+            if voice_states[v].active {
+                if !any_active {
+                    first_active_freq = voice_states[v].freq;
+                    first_active_gate = voice_states[v].gate;
+                    first_active_vel = voice_states[v].velocity;
+                }
+                any_active = true;
+                if voice_states[v].gate > first_active_gate {
+                    first_active_gate = voice_states[v].gate;
                 }
             }
         }
+        for node_opt in &mut self.global_nodes {
+            if let Some(node) = node_opt {
+                node.module.set_voice(first_active_freq, first_active_gate, first_active_vel);
+            }
+        }
 
-        // Process global modules
+        // Process global modules first so their outputs are ready for per-voice modules
         for node_opt in &mut self.global_nodes {
             if let Some(node) = node_opt {
                 let input_refs: Vec<&[f32]> =
@@ -327,6 +354,19 @@ impl Graph {
                     for i in 0..frames {
                         self.master_output[i] += node.inputs[0][i];
                     }
+                }
+            }
+        }
+
+        // Process per-voice modules (they may read global outputs routed to their inputs)
+        for v in 0..active_count {
+            for voice_vec in &mut self.voice_nodes {
+                if let Some(node) = voice_vec.get_mut(v).and_then(|n| n.as_mut()) {
+                    let input_refs: Vec<&[f32]> =
+                        node.inputs.iter().map(|b| &b[..frames]).collect();
+                    let mut output_refs: Vec<&mut [f32]> =
+                        node.outputs.iter_mut().map(|b| &mut b[..frames]).collect();
+                    node.module.process(&input_refs, &mut output_refs, frames);
                 }
             }
         }

@@ -9,6 +9,7 @@ pub struct Adsr {
     state: AdsrState,
     level: f32,
     gate: f32,
+    voice_gate: f32,
 }
 
 #[derive(Clone, Copy)]
@@ -48,6 +49,7 @@ impl Adsr {
             state: AdsrState::Idle,
             level: 0.0,
             gate: 0.0,
+            voice_gate: 0.0,
         }
     }
 
@@ -61,7 +63,7 @@ impl Module for Adsr {
         let gate_in = if !inputs.is_empty() { &inputs[0][..frames] } else { &[] as &[f32] };
         let out = &mut outputs[0][..frames];
         for i in 0..frames {
-            let g = if i < gate_in.len() { gate_in[i] } else { self.gate };
+            let g = if i < gate_in.len() { gate_in[i] } else { self.voice_gate };
             if g > 0.5 && self.gate <= 0.5 {
                 self.state = AdsrState::Attack;
             } else if g <= 0.5 && self.gate > 0.5 {
@@ -109,7 +111,12 @@ impl Module for Adsr {
     }
 
     fn set_voice(&mut self, _freq: f32, gate: f32, _velocity: f32) {
-        self.gate = gate;
+        if gate > 0.5 && self.voice_gate <= 0.5 {
+            self.state = AdsrState::Attack;
+        } else if gate <= 0.5 && self.voice_gate > 0.5 {
+            self.state = AdsrState::Release;
+        }
+        self.voice_gate = gate;
     }
 
     fn num_inputs(&self) -> usize { 1 }

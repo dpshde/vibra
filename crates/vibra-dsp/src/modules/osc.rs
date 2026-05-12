@@ -68,7 +68,7 @@ impl Module for Oscillator {
     fn process(&mut self, _inputs: &[&[f32]], outputs: &mut [&mut [f32]], frames: usize) {
         let out = &mut outputs[0][..frames];
         let table = &self.tables[self.waveform as usize];
-        let freq = self.freq + self.detune;
+        let freq = self.freq * 2.0f32.powf(self.detune / 1200.0);
         let phase_inc = freq / self.sample_rate;
 
         for i in 0..frames {

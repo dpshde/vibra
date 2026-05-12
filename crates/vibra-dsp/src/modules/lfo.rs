@@ -76,7 +76,7 @@ impl Lfo {
             waveform: LfoWaveform::Sine,
             tables,
             gate: 0.0,
-            retrigger: true,
+            retrigger: false,
             held_random: 0.0,
             cycle_count: 0,
         }
