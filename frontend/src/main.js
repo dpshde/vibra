@@ -13,13 +13,6 @@ import { loadEchoPluck } from "./examples/echo-pluck.js";
 import { loadNoisePercussion } from "./examples/noise-perc.js";
 import { loadPlugins } from "./plugin/sdk.js";
 import { exportOSP, importOSP } from "./patch-format/osp.js";
-import {
-  message as dialogMessage,
-  open as openDialog,
-  save as saveDialog,
-} from "@tauri-apps/plugin-dialog";
-import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
-
 // Built-in manifests
 import oscManifest from "./synth/builtins/oscillator.js";
 import gainManifest from "./synth/builtins/gain.js";
@@ -68,18 +61,7 @@ function updatePatchWarning() {
   }
 }
 
-function isTauriRuntime() {
-  return typeof window !== "undefined" && !!window.__TAURI_INTERNALS__;
-}
-
 async function showErrorDialog(message) {
-  if (isTauriRuntime()) {
-    await dialogMessage(message, {
-      title: "Vibra",
-      kind: "error",
-    });
-    return;
-  }
   window.alert(message);
 }
 
@@ -120,16 +102,6 @@ async function exportCurrentPatch() {
   const jsonText = JSON.stringify(patch, null, 2);
   const fileName = makePatchFilename(patch.metadata?.name);
 
-  if (isTauriRuntime()) {
-    const path = await saveDialog({
-      defaultPath: fileName,
-      filters: [{ name: "Open Synth Patch", extensions: ["json"] }],
-    });
-    if (!path) return;
-    await writeTextFile(path, jsonText);
-    return;
-  }
-
   const blob = new Blob([jsonText], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -165,6 +137,9 @@ async function initAudio() {
     );
     return;
   }
+
+  // Manifests are authored in JS; WASM engine uses kind/num_inputs/num_outputs
+  // but does not export metadata back to JS.
 
   if (ctx.state !== "running") {
     console.warn(
@@ -210,6 +185,9 @@ async function initAudio() {
     updatePatchWarning();
   };
   graph.onConnectionChange = () => updatePatchWarning();
+
+  // Initialize default voice config
+  patchBay.setVoiceConfig({ mode: "poly", polyphony: 8, unisonCount: 1, unisonDetune: 0 });
 
   const arrangeButton = document.getElementById("btn-arrange");
   arrangeButton.onclick = () => {
@@ -274,11 +252,19 @@ async function initAudio() {
     };
   }
 
+  // Keyboard with polyphonic support
   const keyboardContainer = document.getElementById("keyboard");
+  const activeNotes = new Set();
   createKeyboard(
     keyboardContainer,
-    (note, freq) => bridge.noteOn(note, 0.8),
-    (note) => bridge.noteOff(note),
+    (note, freq) => {
+      activeNotes.add(note);
+      bridge.noteOn(note, 0.8);
+    },
+    (note) => {
+      activeNotes.delete(note);
+      bridge.noteOff(note);
+    },
   );
 
   const scopeCanvas = document.getElementById("scope");
@@ -329,16 +315,6 @@ document.getElementById("btn-export").onclick = async () => {
 const fileInput = document.getElementById("file-import");
 document.getElementById("btn-import").onclick = async () => {
   try {
-    if (isTauriRuntime()) {
-      const selected = await openDialog({
-        multiple: false,
-        filters: [{ name: "Open Synth Patch", extensions: ["json"] }],
-      });
-      if (!selected || Array.isArray(selected)) return;
-      const text = await readTextFile(selected);
-      await importPatchFromText(text);
-      return;
-    }
     fileInput.click();
   } catch (err) {
     console.error("Import failed:", err);

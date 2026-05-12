@@ -8,6 +8,19 @@ const NOTE_FREQS = {
   'C5': 523.25
 }
 
+// Computer keyboard → note mapping (two-octave layout like DAWs)
+const KEY_MAP = {
+  // Lower octave (Z row)
+  'z': 'C3', 's': 'C#3', 'x': 'D3', 'd': 'D#3',
+  'c': 'E3', 'v': 'F3', 'g': 'F#3', 'b': 'G3',
+  'h': 'G#3', 'n': 'A3', 'j': 'A#3', 'm': 'B3',
+  ',': 'C4', 'l': 'C#4', '.': 'D4', ';': 'D#4', '/': 'E4',
+  // Upper octave (Q row)
+  'q': 'C4', '2': 'C#4', 'w': 'D4', '3': 'D#4',
+  'e': 'E4', 'r': 'F4', '5': 'F#4', 't': 'G4',
+  '6': 'G#4', 'y': 'A4', '7': 'A#4', 'u': 'B4', 'i': 'C5',
+}
+
 export function createKeyboard(container, onNoteOn, onNoteOff) {
   container.innerHTML = ''
   const keys = document.createElement('div')
@@ -39,4 +52,50 @@ export function createKeyboard(container, onNoteOn, onNoteOff) {
   }
 
   container.appendChild(keys)
+
+  // Computer keyboard support
+  const heldComputerKeys = new Set()
+  const noteActiveCount = new Map()
+
+  function isTyping() {
+    const tag = document.activeElement?.tagName
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.repeat || isTyping()) return
+    const note = KEY_MAP[e.key.toLowerCase()]
+    if (!note) return
+    e.preventDefault()
+
+    heldComputerKeys.add(e.key.toLowerCase())
+    const prevCount = noteActiveCount.get(note) || 0
+    noteActiveCount.set(note, prevCount + 1)
+
+    if (prevCount === 0) {
+      const keyEl = keys.querySelector(`[data-note="${note}"]`)
+      if (keyEl) keyEl.classList.add('active')
+      onNoteOn(note, NOTE_FREQS[note])
+    }
+  })
+
+  document.addEventListener('keyup', (e) => {
+    const key = e.key.toLowerCase()
+    if (!heldComputerKeys.has(key)) return
+    heldComputerKeys.delete(key)
+
+    const note = KEY_MAP[key]
+    if (!note) return
+
+    const prevCount = noteActiveCount.get(note) || 0
+    if (prevCount > 0) {
+      const newCount = prevCount - 1
+      noteActiveCount.set(note, newCount)
+      if (newCount === 0) {
+        const keyEl = keys.querySelector(`[data-note="${note}"]`)
+        if (keyEl) keyEl.classList.remove('active')
+        onNoteOff(note)
+      }
+    }
+  })
 }

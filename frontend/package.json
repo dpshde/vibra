@@ -4,20 +4,20 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "portless run vite",
+    "dev:raw": "vite",
+    "dev:tailscale": "PORTLESS_PORT=1355 portless run --tailscale vite",
+    "dev:funnel": "PORTLESS_PORT=1355 portless run --funnel vite",
     "build": "vite build",
     "preview": "vite preview",
     "wasm": "cargo build -p vibra_dsp --target wasm32-unknown-unknown --release && cp ../target/wasm32-unknown-unknown/release/vibra_dsp.wasm public/vibra_dsp.wasm",
-    "wasm-dev": "cargo build -p vibra_dsp --target wasm32-unknown-unknown && cp ../target/wasm32-unknown-unknown/debug/vibra_dsp.wasm public/vibra_dsp.wasm",
-    "tauri": "tauri",
-    "tauri-dev": "tauri dev",
-    "tauri-build": "tauri build"
+    "wasm-dev": "cargo build -p vibra_dsp --target wasm32-unknown-unknown && cp ../target/wasm32-unknown-unknown/debug/vibra_dsp.wasm public/vibra_dsp.wasm"
+  },
+  "portless": {
+    "name": "vibra"
   },
   "devDependencies": {
-    "vite": "^8.0.11",
-    "@tauri-apps/cli": "^2"
+    "vite": "^8.0.11"
   },
-  "dependencies": {
-    "@tauri-apps/api": "^2"
-  }
+  "dependencies": {}
 }

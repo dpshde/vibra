@@ -60,6 +60,7 @@ vibra/
 
 - [Rust](https://rustup.rs/) + `wasm32-unknown-unknown` target
 - Node.js + pnpm/npm
+- [portless](https://github.com/vercel-labs/portless) (optional, for named URLs + Tailscale)
 
 ### Build & Run
 
@@ -71,11 +72,23 @@ rustup target add wasm32-unknown-unknown
 cd frontend
 pnpm wasm-dev
 
-# 3. Start the dev server
+# 3. Start the dev server (https://vibra.localhost)
 pnpm dev
 ```
 
-Then open the printed localhost URL and click **\[ START_AUDIO \]**.
+Then open the printed URL and click **\[ START_AUDIO \]**.
+
+### Share over Tailscale
+
+If you have [Tailscale](https://tailscale.com) installed and connected:
+
+```sh
+# Share with your tailnet (https://<machine>.<tailnet>.ts.net)
+pnpm dev:tailscale
+
+# Or expose publicly via Tailscale Funnel
+pnpm dev:funnel
+```
 
 ### Production Build
 

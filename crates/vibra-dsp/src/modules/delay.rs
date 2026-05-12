@@ -1,4 +1,4 @@
-use super::{Module, ModuleKind};
+use super::{Module, ModuleKind, ModuleManifest, ParamDef, PortDef, PortRate, ParamUnit};
 
 pub struct Delay {
     sample_rate: f32,
@@ -10,6 +10,22 @@ pub struct Delay {
 }
 
 impl Delay {
+    pub const MANIFEST: ModuleManifest = ModuleManifest {
+        id: "builtin-delay",
+        name: "Delay",
+        category: "effect",
+        kind: ModuleKind::Delay,
+        inputs: &[PortDef { id: "in", name: "In", rate: PortRate::Audio }],
+        outputs: &[PortDef { id: "out", name: "Out", rate: PortRate::Audio }],
+        parameters: &[
+            ParamDef { id: "delay_ms", name: "Delay Time", description: "Delay time in milliseconds.", unit: ParamUnit::Ms, min: 1.0, max: 5000.0, default: 250.0, enum_values: &[] },
+            ParamDef { id: "feedback", name: "Feedback", description: "Amount of delayed signal fed back into the input.", unit: ParamUnit::Ratio, min: 0.0, max: 0.99, default: 0.3, enum_values: &[] },
+            ParamDef { id: "mix", name: "Mix", description: "Balance between dry and wet signal.", unit: ParamUnit::Ratio, min: 0.0, max: 1.0, default: 0.5, enum_values: &[] },
+        ],
+        voice_scope: super::VoiceScope::Global,
+        create: |sr, _bs| Box::new(Delay::new(sr, 5000.0)),
+    };
+
     pub fn new(sample_rate: f32, max_delay_ms: f32) -> Self {
         let max_samples = ((max_delay_ms / 1000.0) * sample_rate).ceil() as usize + 1;
         Self {
@@ -60,4 +76,8 @@ impl Module for Delay {
     fn num_inputs(&self) -> usize { 1 }
     fn num_outputs(&self) -> usize { 1 }
     fn kind(&self) -> ModuleKind { ModuleKind::Delay }
+
+    fn params(&self) -> &'static [crate::param::ParamDef] {
+        Self::MANIFEST.parameters
+    }
 }

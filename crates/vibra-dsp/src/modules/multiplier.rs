@@ -1,10 +1,27 @@
-use super::{Module, ModuleKind};
+use super::{Module, ModuleKind, ModuleManifest, ParamDef, PortDef, PortRate, ParamUnit};
 
 pub struct Multiplier {
     gain: f32,
 }
 
 impl Multiplier {
+    pub const MANIFEST: ModuleManifest = ModuleManifest {
+        id: "builtin-mult",
+        name: "Multiplier",
+        category: "utility",
+        kind: ModuleKind::Multiplier,
+        inputs: &[
+            PortDef { id: "in", name: "In", rate: PortRate::Audio },
+            PortDef { id: "mod", name: "Mod", rate: PortRate::Audio },
+        ],
+        outputs: &[PortDef { id: "out", name: "Out", rate: PortRate::Audio }],
+        parameters: &[
+            ParamDef { id: "gain", name: "Gain", description: "Output scaling.", unit: ParamUnit::Ratio, min: 0.0, max: 2.0, default: 1.0, enum_values: &[] },
+        ],
+        voice_scope: super::VoiceScope::PerVoice,
+        create: |_sr, _bs| Box::new(Multiplier::new()),
+    };
+
     pub fn new() -> Self {
         Self { gain: 1.0 }
     }
@@ -41,5 +58,9 @@ impl Module for Multiplier {
     }
     fn kind(&self) -> ModuleKind {
         ModuleKind::Multiplier
+    }
+
+    fn params(&self) -> &'static [crate::param::ParamDef] {
+        Self::MANIFEST.parameters
     }
 }

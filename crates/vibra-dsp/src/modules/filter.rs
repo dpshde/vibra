@@ -1,4 +1,4 @@
-use super::{Module, ModuleKind};
+use super::{Module, ModuleKind, ModuleManifest, ParamDef, PortDef, PortRate, ParamUnit};
 
 pub struct BiquadFilter {
     sample_rate: f32,
@@ -26,6 +26,22 @@ struct BiquadCoeffs {
 }
 
 impl BiquadFilter {
+    pub const MANIFEST: ModuleManifest = ModuleManifest {
+        id: "builtin-filter",
+        name: "Filter",
+        category: "effect",
+        kind: ModuleKind::Filter,
+        inputs: &[PortDef { id: "in", name: "In", rate: PortRate::Audio }],
+        outputs: &[PortDef { id: "out", name: "Out", rate: PortRate::Audio }],
+        parameters: &[
+            ParamDef { id: "frequency", name: "Cutoff", description: "The frequency where filtering begins.", unit: ParamUnit::Hz, min: 20.0, max: 20000.0, default: 1000.0, enum_values: &[] },
+            ParamDef { id: "resonance", name: "Peak (Res)", description: "Boosts the frequencies right at the cutoff point.", unit: ParamUnit::Ratio, min: 0.01, max: 10.0, default: 0.7, enum_values: &[] },
+            ParamDef { id: "type", name: "Type", description: "Filter response type.", unit: ParamUnit::Enum, min: 0.0, max: 2.0, default: 0.0, enum_values: &["lowpass", "highpass", "bandpass"] },
+        ],
+        voice_scope: super::VoiceScope::PerVoice,
+        create: |sr, _bs| Box::new(BiquadFilter::new(sr)),
+    };
+
     pub fn new(sample_rate: f32) -> Self {
         let freq = 1000.0;
         let res = 0.7;
@@ -108,4 +124,8 @@ impl Module for BiquadFilter {
     fn num_inputs(&self) -> usize { 1 }
     fn num_outputs(&self) -> usize { 1 }
     fn kind(&self) -> ModuleKind { ModuleKind::Filter }
+
+    fn params(&self) -> &'static [crate::param::ParamDef] {
+        Self::MANIFEST.parameters
+    }
 }

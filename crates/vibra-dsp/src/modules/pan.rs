@@ -1,10 +1,27 @@
-use super::{Module, ModuleKind};
+use super::{Module, ModuleKind, ModuleManifest, ParamDef, PortDef, PortRate, ParamUnit};
 
 pub struct Pan {
     pan: f32, // -1.0 = full left, 0.0 = center, 1.0 = full right
 }
 
 impl Pan {
+    pub const MANIFEST: ModuleManifest = ModuleManifest {
+        id: "builtin-pan",
+        name: "Pan",
+        category: "utility",
+        kind: ModuleKind::Pan,
+        inputs: &[PortDef { id: "in", name: "In", rate: PortRate::Audio }],
+        outputs: &[
+            PortDef { id: "left", name: "Left", rate: PortRate::Audio },
+            PortDef { id: "right", name: "Right", rate: PortRate::Audio },
+        ],
+        parameters: &[
+            ParamDef { id: "pan", name: "Pan", description: "Stereo pan position.", unit: ParamUnit::None, min: -1.0, max: 1.0, default: 0.0, enum_values: &[] },
+        ],
+        voice_scope: super::VoiceScope::PerVoice,
+        create: |_sr, _bs| Box::new(Pan::new()),
+    };
+
     pub fn new() -> Self {
         Self { pan: 0.0 }
     }
@@ -46,5 +63,9 @@ impl Module for Pan {
     }
     fn kind(&self) -> ModuleKind {
         ModuleKind::Pan
+    }
+
+    fn params(&self) -> &'static [crate::param::ParamDef] {
+        Self::MANIFEST.parameters
     }
 }

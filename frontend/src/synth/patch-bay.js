@@ -6,6 +6,26 @@ export class PatchBay {
     this.registry = registry;
     this.modules = new Map();
     this.nextId = 1;
+    this.voiceConfig = {
+      mode: "poly",
+      polyphony: 8,
+      unisonCount: 1,
+      unisonDetune: 0,
+    };
+  }
+
+  setVoiceConfig(config) {
+    this.voiceConfig = { ...this.voiceConfig, ...config };
+    if (this.bridge) {
+      const modeMap = { mono: 0, poly: 1, unison: 2, legato: 3, paraphonic: 4 };
+      const mode = modeMap[this.voiceConfig.mode] ?? 1;
+      this.bridge.setVoiceMode(
+        mode,
+        this.voiceConfig.polyphony,
+        this.voiceConfig.unisonCount,
+        this.voiceConfig.unisonDetune,
+      );
+    }
   }
 
   addModule(manifest) {
@@ -62,6 +82,16 @@ export class PatchBay {
     );
     const inputIdx = target.manifest.inputs.findIndex((i) => i.id === inputId);
     if (outputIdx === -1 || inputIdx === -1) throw new Error("PORT NOT FOUND");
+
+    // Rate validation: control→audio is allowed (modulation), audio→audio is allowed.
+    // audio→control and control→control both allowed (arbitrary mixing for now).
+    const outRate = source.manifest.outputs[outputIdx]?.type;
+    const inRate = target.manifest.inputs[inputIdx]?.type;
+    if (outRate === "audio" && inRate === "control") {
+      throw new Error(
+        `RATE MISMATCH: audio output "${outputId}" cannot connect to control input "${inputId}"`
+      );
+    }
 
     if (
       source.manifest.kind !== undefined &&

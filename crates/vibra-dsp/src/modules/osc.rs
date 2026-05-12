@@ -1,4 +1,4 @@
-use super::{Module, ModuleKind};
+use super::{Module, ModuleKind, ModuleManifest, ParamDef, PortDef, PortRate, ParamUnit};
 
 const TABLE_SIZE: usize = 2048;
 
@@ -20,6 +20,22 @@ enum Waveform {
 }
 
 impl Oscillator {
+    pub const MANIFEST: ModuleManifest = ModuleManifest {
+        id: "builtin-osc",
+        name: "Oscillator",
+        category: "source",
+        kind: ModuleKind::Oscillator,
+        inputs: &[],
+        outputs: &[PortDef { id: "out", name: "Out", rate: PortRate::Audio }],
+        parameters: &[
+            ParamDef { id: "waveform", name: "Waveform", description: "The basic shape of the sound wave.", unit: ParamUnit::Enum, min: 0.0, max: 3.0, default: 0.0, enum_values: &["sine", "square", "sawtooth", "triangle"] },
+            ParamDef { id: "frequency", name: "Pitch (Hz)", description: "The pitch of the note in Hertz.", unit: ParamUnit::Hz, min: 20.0, max: 20000.0, default: 440.0, enum_values: &[] },
+            ParamDef { id: "detune", name: "Detune (cents)", description: "Slight pitch offset in cents.", unit: ParamUnit::Cents, min: -100.0, max: 100.0, default: 0.0, enum_values: &[] },
+        ],
+        voice_scope: super::VoiceScope::PerVoice,
+        create: |sr, _bs| Box::new(Oscillator::new(sr)),
+    };
+
     pub fn new(sample_rate: f32) -> Self {
         let mut tables = Vec::with_capacity(4);
         for w in 0..4 {
@@ -90,4 +106,8 @@ impl Module for Oscillator {
     fn num_inputs(&self) -> usize { 0 }
     fn num_outputs(&self) -> usize { 1 }
     fn kind(&self) -> ModuleKind { ModuleKind::Oscillator }
+
+    fn params(&self) -> &'static [ParamDef] {
+        Self::MANIFEST.parameters
+    }
 }

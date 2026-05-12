@@ -32,39 +32,8 @@ const OSP_KIND_TO_VIBRA_DEFAULT = {
   other: null,
 };
 
-function inferSemanticUnit(paramDef, manifestId) {
-  const { id, type } = paramDef;
-
-  if (type === "enum") return "enum";
-
-  if (id === "frequency") {
-    if (
-      manifestId === "builtin-filter" ||
-      manifestId === "builtin-osc" ||
-      manifestId === "builtin-lfo"
-    ) {
-      return "hz";
-    }
-  }
-  if (id === "delay_ms") return "ms";
-  if (["attack", "decay", "release"].includes(id)) return "s";
-  if (id === "sustain") return "ratio";
-  if (id === "detune") return "cents";
-  if (id === "resonance") return "ratio";
-  if (["gain", "mix", "feedback", "amplitude", "color"].includes(id))
-    return "ratio";
-
-  if (type === "float") {
-    const { min, max } = paramDef;
-    if (max !== undefined && max <= 2 && min !== undefined && min >= 0)
-      return "ratio";
-    if (max !== undefined && max >= 1000 && min !== undefined && min >= 0)
-      return "hz";
-    if (max !== undefined && max <= 10 && min !== undefined && min >= 0)
-      return "s";
-  }
-
-  return "none";
+function getSemanticUnit(paramDef) {
+  return paramDef.unit || "none";
 }
 
 function computeNormalized(value, paramDef) {
@@ -116,7 +85,7 @@ export function exportOSP(patchBay, metadata = {}) {
 
     const parameters = manifest.parameters.map((paramDef) => {
       const rawValue = instance.params[paramDef.id] ?? paramDef.default;
-      const semanticUnit = inferSemanticUnit(paramDef, manifest.id);
+      const semanticUnit = getSemanticUnit(paramDef);
       const normalized = computeNormalized(rawValue, paramDef);
 
       return {
@@ -163,7 +132,7 @@ export function exportOSP(patchBay, metadata = {}) {
       targetSynth: "vibra",
       ...metadata,
     },
-    voice: {
+    voice: patchBay.voiceConfig || {
       mode: "poly",
       polyphony: 8,
     },
@@ -257,6 +226,16 @@ export function importOSP(patchBay, registry, ospJson) {
         patchBay.setParam(vibraId, param.id, value);
       }
     }
+  }
+
+  // Apply voice configuration
+  if (ospJson.voice) {
+    patchBay.setVoiceConfig({
+      mode: ospJson.voice.mode || "poly",
+      polyphony: ospJson.voice.polyphony || 8,
+      unisonCount: ospJson.voice.unisonCount || 1,
+      unisonDetune: ospJson.voice.unisonDetune || 0,
+    });
   }
 
   // Second pass: create connections

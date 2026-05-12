@@ -47,6 +47,8 @@ export class EngineBridge {
       outputChannelCount: [2],
     });
 
+    this.manifests = [];
+
     this.workletNode.port.onmessage = (e) => {
       const msg = e.data;
       if (msg.type === "ready") {
@@ -138,6 +140,16 @@ export class EngineBridge {
     this.workletNode.port.postMessage({
       type: "noteOff",
       note: noteToMidi(note),
+    });
+  }
+
+  setVoiceMode(mode, polyphony, unisonCount, unisonDetune) {
+    this.workletNode.port.postMessage({
+      type: "voiceMode",
+      mode,
+      polyphony,
+      unisonCount,
+      unisonDetune,
     });
   }
 }

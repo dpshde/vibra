@@ -1,4 +1,4 @@
-use super::{Module, ModuleKind};
+use super::{Module, ModuleKind, ModuleManifest, ParamDef, PortDef, PortRate, ParamUnit};
 
 const TABLE_SIZE: usize = 2048;
 
@@ -25,6 +25,26 @@ enum LfoWaveform {
 }
 
 impl Lfo {
+    pub const MANIFEST: ModuleManifest = ModuleManifest {
+        id: "builtin-lfo",
+        name: "LFO",
+        category: "modulation",
+        kind: ModuleKind::Lfo,
+        inputs: &[
+            PortDef { id: "fm", name: "FM", rate: PortRate::Audio },
+            PortDef { id: "sync", name: "Sync", rate: PortRate::Audio },
+        ],
+        outputs: &[PortDef { id: "out", name: "Out", rate: PortRate::Audio }],
+        parameters: &[
+            ParamDef { id: "waveform", name: "Waveform", description: "The shape of the wobble.", unit: ParamUnit::Enum, min: 0.0, max: 4.0, default: 0.0, enum_values: &["sine", "square", "sawtooth", "triangle", "random"] },
+            ParamDef { id: "frequency", name: "Speed (Hz)", description: "How fast the wobble happens.", unit: ParamUnit::Hz, min: 0.01, max: 100.0, default: 1.0, enum_values: &[] },
+            ParamDef { id: "amplitude", name: "Depth", description: "How intense the wobble is.", unit: ParamUnit::Ratio, min: 0.0, max: 2.0, default: 1.0, enum_values: &[] },
+            ParamDef { id: "retrigger", name: "Retrigger", description: "Restarts the LFO on each note.", unit: ParamUnit::Boolean, min: 0.0, max: 1.0, default: 1.0, enum_values: &["off", "on"] },
+        ],
+        voice_scope: super::VoiceScope::Global,
+        create: |sr, _bs| Box::new(Lfo::new(sr)),
+    };
+
     pub fn new(sample_rate: f32) -> Self {
         let mut tables = Vec::with_capacity(4);
         for w in 0..4 {
@@ -155,5 +175,9 @@ impl Module for Lfo {
     }
     fn kind(&self) -> ModuleKind {
         ModuleKind::Lfo
+    }
+
+    fn params(&self) -> &'static [crate::param::ParamDef] {
+        Self::MANIFEST.parameters
     }
 }

@@ -1,13 +1,29 @@
-use super::{Module, ModuleKind};
+use super::{Module, ModuleKind, ModuleManifest, ParamDef, PortDef, PortRate, ParamUnit};
+use crate::param::SmoothedParam;
 
 pub struct Gain {
-    gain: f32,
-    smooth_gain: f32,
+    gain: SmoothedParam,
 }
 
 impl Gain {
+    pub const MANIFEST: ModuleManifest = ModuleManifest {
+        id: "builtin-gain",
+        name: "Gain",
+        category: "utility",
+        kind: ModuleKind::Gain,
+        inputs: &[PortDef { id: "in", name: "In", rate: PortRate::Audio }],
+        outputs: &[PortDef { id: "out", name: "Out", rate: PortRate::Audio }],
+        parameters: &[
+            ParamDef { id: "gain", name: "Volume", description: "Volume multiplier.", unit: ParamUnit::Ratio, min: 0.0, max: 2.0, default: 1.0, enum_values: &[] },
+        ],
+        voice_scope: super::VoiceScope::PerVoice,
+        create: |_sr, _bs| Box::new(Gain::new()),
+    };
+
     pub fn new() -> Self {
-        Self { gain: 1.0, smooth_gain: 1.0 }
+        Self {
+            gain: SmoothedParam::new(1.0, 0.01),
+        }
     }
 }
 
@@ -16,17 +32,20 @@ impl Module for Gain {
         let inp = &inputs[0][..frames];
         let out = &mut outputs[0][..frames];
         for i in 0..frames {
-            self.smooth_gain += 0.01 * (self.gain - self.smooth_gain);
-            out[i] = inp[i] * self.smooth_gain;
+            out[i] = inp[i] * self.gain.next();
         }
     }
 
     fn set_param(&mut self, index: usize, value: f32) {
-        if index == 0 { self.gain = value; }
+        if index == 0 { self.gain.set_target(value); }
     }
 
     fn set_voice(&mut self, _freq: f32, _gate: f32, _velocity: f32) {}
     fn num_inputs(&self) -> usize { 1 }
     fn num_outputs(&self) -> usize { 1 }
     fn kind(&self) -> ModuleKind { ModuleKind::Gain }
+
+    fn params(&self) -> &'static [ParamDef] {
+        Self::MANIFEST.parameters
+    }
 }

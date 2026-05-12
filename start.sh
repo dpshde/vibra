@@ -19,14 +19,16 @@ if ! rustup target list --installed | grep -q wasm32-unknown-unknown; then
     rustup target add wasm32-unknown-unknown
 fi
 
+# Ensure portless is available
+if ! command -v portless &> /dev/null; then
+    echo "portless not found. Installing globally..."
+    npm install -g portless
+fi
+
 # Build wasm
 cd frontend
 pnpm wasm-dev
 
-if [ "$1" == "tauri" ]; then
-  echo "Starting Tauri dev..."
-  pnpm tauri dev
-else
-  # Start dev server
-  pnpm dev
-fi
+# Start dev server via portless (https://vibra.localhost)
+echo "Starting dev server with portless..."
+portless run vite

@@ -1,4 +1,4 @@
-use super::{Module, ModuleKind};
+use super::{Module, ModuleKind, ModuleManifest, ParamDef, PortDef, PortRate, ParamUnit};
 
 pub struct Noise {
     seed: u32,
@@ -7,6 +7,20 @@ pub struct Noise {
 }
 
 impl Noise {
+    pub const MANIFEST: ModuleManifest = ModuleManifest {
+        id: "builtin-noise",
+        name: "Noise",
+        category: "source",
+        kind: ModuleKind::Noise,
+        inputs: &[],
+        outputs: &[PortDef { id: "out", name: "Out", rate: PortRate::Audio }],
+        parameters: &[
+            ParamDef { id: "color", name: "Color", description: "Amount of lowpass filtering on the noise.", unit: ParamUnit::Ratio, min: 0.0, max: 1.0, default: 0.0, enum_values: &[] },
+        ],
+        voice_scope: super::VoiceScope::PerVoice,
+        create: |_sr, _bs| Box::new(Noise::new()),
+    };
+
     pub fn new() -> Self {
         Self {
             seed: 12345,
@@ -44,4 +58,8 @@ impl Module for Noise {
     fn num_inputs(&self) -> usize { 0 }
     fn num_outputs(&self) -> usize { 1 }
     fn kind(&self) -> ModuleKind { ModuleKind::Noise }
+
+    fn params(&self) -> &'static [crate::param::ParamDef] {
+        Self::MANIFEST.parameters
+    }
 }

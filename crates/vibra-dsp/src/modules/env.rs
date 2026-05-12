@@ -1,4 +1,4 @@
-use super::{Module, ModuleKind};
+use super::{Module, ModuleKind, ModuleManifest, ParamDef, PortDef, PortRate, ParamUnit};
 
 pub struct Adsr {
     sample_rate: f32,
@@ -21,6 +21,23 @@ enum AdsrState {
 }
 
 impl Adsr {
+    pub const MANIFEST: ModuleManifest = ModuleManifest {
+        id: "builtin-env",
+        name: "Envelope",
+        category: "modulation",
+        kind: ModuleKind::Adsr,
+        inputs: &[PortDef { id: "gate", name: "Gate", rate: PortRate::Audio }],
+        outputs: &[PortDef { id: "out", name: "Out", rate: PortRate::Audio }],
+        parameters: &[
+            ParamDef { id: "attack", name: "Attack", description: "How quickly the sound rises from silence.", unit: ParamUnit::S, min: 0.001, max: 5.0, default: 0.01, enum_values: &[] },
+            ParamDef { id: "decay", name: "Decay", description: "How quickly the sound falls from peak to sustain.", unit: ParamUnit::S, min: 0.001, max: 5.0, default: 0.3, enum_values: &[] },
+            ParamDef { id: "sustain", name: "Sustain", description: "The volume level held while a key is pressed.", unit: ParamUnit::Ratio, min: 0.0, max: 1.0, default: 0.5, enum_values: &[] },
+            ParamDef { id: "release", name: "Release", description: "How long the sound takes to fade after release.", unit: ParamUnit::S, min: 0.001, max: 10.0, default: 0.5, enum_values: &[] },
+        ],
+        voice_scope: super::VoiceScope::PerVoice,
+        create: |sr, _bs| Box::new(Adsr::new(sr)),
+    };
+
     pub fn new(sample_rate: f32) -> Self {
         Self {
             sample_rate,
@@ -98,4 +115,8 @@ impl Module for Adsr {
     fn num_inputs(&self) -> usize { 1 }
     fn num_outputs(&self) -> usize { 1 }
     fn kind(&self) -> ModuleKind { ModuleKind::Adsr }
+
+    fn params(&self) -> &'static [crate::param::ParamDef] {
+        Self::MANIFEST.parameters
+    }
 }

@@ -32,6 +32,48 @@ impl ModuleKind {
     }
 }
 
+pub use crate::param::{ParamDef, ParamUnit};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PortRate {
+    Audio,
+    Control,
+}
+
+impl PortRate {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            PortRate::Audio => "audio",
+            PortRate::Control => "control",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct PortDef {
+    pub id: &'static str,
+    pub name: &'static str,
+    pub rate: PortRate,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VoiceScope {
+    PerVoice,
+    Global,
+}
+
+pub struct ModuleManifest {
+    pub id: &'static str,
+    pub name: &'static str,
+    pub category: &'static str,
+    pub kind: ModuleKind,
+    pub inputs: &'static [PortDef],
+    pub outputs: &'static [PortDef],
+    pub parameters: &'static [ParamDef],
+    pub voice_scope: VoiceScope,
+    pub create: fn(f32, usize) -> Box<dyn Module>,
+}
+
 pub trait Module {
     fn process(&mut self, inputs: &[&[f32]], outputs: &mut [&mut [f32]], frames: usize);
     fn set_param(&mut self, index: usize, value: f32);
@@ -39,6 +81,10 @@ pub trait Module {
     fn num_inputs(&self) -> usize;
     fn num_outputs(&self) -> usize;
     fn kind(&self) -> ModuleKind;
+    /// Return metadata for each parameter this module exposes.
+    fn params(&self) -> &'static [ParamDef] {
+        &[]
+    }
 }
 
 mod delay;
@@ -64,28 +110,45 @@ pub use pan::Pan;
 pub use scope::Scope;
 
 pub fn create_module(kind: ModuleKind, sample_rate: f32, block_size: usize) -> Box<dyn Module> {
-    match kind {
-        ModuleKind::Oscillator => Box::new(Oscillator::new(sample_rate)),
-        ModuleKind::Gain => Box::new(Gain::new()),
-        ModuleKind::Filter => Box::new(BiquadFilter::new(sample_rate)),
-        ModuleKind::Adsr => Box::new(Adsr::new(sample_rate)),
-        ModuleKind::Scope => Box::new(Scope::new(block_size)),
-        ModuleKind::Destination => Box::new(Destination::new()),
-        ModuleKind::Lfo => Box::new(Lfo::new(sample_rate)),
-        ModuleKind::Noise => Box::new(Noise::new()),
-        ModuleKind::Delay => Box::new(Delay::new(sample_rate, 5000.0)),
-        ModuleKind::Multiplier => Box::new(Multiplier::new()),
-        ModuleKind::Pan => Box::new(Pan::new()),
+    (manifest_for(kind).create)(sample_rate, block_size)
+}
+
+/// Static registry of all builtin module manifests.
+pub fn registry() -> &'static [ModuleManifest] {
+    &[Oscillator::MANIFEST, Gain::MANIFEST, BiquadFilter::MANIFEST,
+      Adsr::MANIFEST, Scope::MANIFEST, DESTINATION_MANIFEST,
+      Lfo::MANIFEST, Noise::MANIFEST, Delay::MANIFEST,
+      Multiplier::MANIFEST, Pan::MANIFEST]
+}
+
+pub fn manifest_for(kind: ModuleKind) -> &'static ModuleManifest {
+    for m in registry() {
+        if m.kind == kind {
+            return m;
+        }
     }
+    &DESTINATION_MANIFEST
 }
 
 struct Destination;
 
 impl Destination {
-    fn new() -> Self {
+    fn new(_sr: f32, _bs: usize) -> Self {
         Self
     }
 }
+
+const DESTINATION_MANIFEST: ModuleManifest = ModuleManifest {
+    id: "builtin-destination",
+    name: "Destination",
+    category: "output",
+    kind: ModuleKind::Destination,
+    inputs: &[PortDef { id: "in", name: "In", rate: PortRate::Audio }],
+    outputs: &[],
+    parameters: &[],
+    voice_scope: VoiceScope::Global,
+    create: |sr, bs| Box::new(Destination::new(sr, bs)),
+};
 
 impl Module for Destination {
     fn process(&mut self, _inputs: &[&[f32]], _outputs: &mut [&mut [f32]], _frames: usize) {}
@@ -99,5 +162,25 @@ impl Module for Destination {
     }
     fn kind(&self) -> ModuleKind {
         ModuleKind::Destination
+    }
+    fn params(&self) -> &'static [ParamDef] {
+        &[]
+    }
+}
+
+/// Get the default voice scope for a module kind.
+pub fn default_voice_scope(kind: ModuleKind) -> VoiceScope {
+    match kind {
+        ModuleKind::Oscillator
+        | ModuleKind::Filter
+        | ModuleKind::Gain
+        | ModuleKind::Adsr
+        | ModuleKind::Noise
+        | ModuleKind::Multiplier
+        | ModuleKind::Pan => VoiceScope::PerVoice,
+        ModuleKind::Lfo
+        | ModuleKind::Delay
+        | ModuleKind::Scope
+        | ModuleKind::Destination => VoiceScope::Global,
     }
 }

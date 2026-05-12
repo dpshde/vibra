@@ -1,19 +1,25 @@
-use crate::modules::{create_module, Module, ModuleKind};
+use crate::modules::{create_module, manifest_for, Module, ModuleKind, ModuleManifest, VoiceScope};
+use crate::voice::VoiceState;
 
 pub struct Graph {
     block_size: usize,
-    modules: Vec<ModuleNode>,
+    max_voices: usize,
+    module_scopes: Vec<Option<VoiceScope>>,
+    module_manifests: Vec<Option<&'static ModuleManifest>>,
+    global_nodes: Vec<Option<ModuleNode>>,
+    voice_nodes: Vec<Vec<Option<ModuleNode>>>,
     connections: Vec<Connection>,
     pub master_output: Vec<f32>,
 }
 
 struct ModuleNode {
-    id: u32,
     module: Box<dyn Module>,
+    manifest: &'static ModuleManifest,
     inputs: Vec<Vec<f32>>,
     outputs: Vec<Vec<f32>>,
 }
 
+#[derive(Clone)]
 struct Connection {
     source_id: u32,
     source_port: usize,
@@ -22,35 +28,109 @@ struct Connection {
 }
 
 impl Graph {
-    pub fn new(block_size: usize) -> Self {
+    pub fn new(block_size: usize, max_voices: usize) -> Self {
         Self {
             block_size,
-            modules: Vec::new(),
+            max_voices: max_voices.max(1),
+            module_scopes: Vec::new(),
+            module_manifests: Vec::new(),
+            global_nodes: Vec::new(),
+            voice_nodes: Vec::new(),
             connections: Vec::new(),
             master_output: vec![0.0; block_size],
         }
     }
 
     pub fn add_module(&mut self, id: u32, kind: ModuleKind, sample_rate: f32, block_size: usize) {
-        let module = create_module(kind, sample_rate, block_size);
-        let num_inputs = module.num_inputs();
-        let num_outputs = module.num_outputs();
-        let node = ModuleNode {
-            id,
-            module,
-            inputs: (0..num_inputs).map(|_| vec![0.0; block_size]).collect(),
-            outputs: (0..num_outputs).map(|_| vec![0.0; block_size]).collect(),
-        };
-        self.modules.push(node);
+        let manifest = manifest_for(kind);
+        let scope = manifest.voice_scope;
+        let idx = id as usize;
+
+        if idx >= self.module_scopes.len() {
+            self.module_scopes.resize_with(idx + 1, || None);
+            self.module_manifests.resize_with(idx + 1, || None);
+            self.global_nodes.resize_with(idx + 1, || None);
+            self.voice_nodes.resize_with(idx + 1, || Vec::new());
+        }
+
+        self.module_scopes[idx] = Some(scope);
+        self.module_manifests[idx] = Some(manifest);
+
+        let num_inputs = manifest.inputs.len();
+        let num_outputs = manifest.outputs.len();
+
+        match scope {
+            VoiceScope::Global => {
+                let module = create_module(kind, sample_rate, block_size);
+                let node = ModuleNode {
+                    module,
+                    manifest,
+                    inputs: (0..num_inputs).map(|_| vec![0.0; block_size]).collect(),
+                    outputs: (0..num_outputs).map(|_| vec![0.0; block_size]).collect(),
+                };
+                self.global_nodes[idx] = Some(node);
+                self.voice_nodes[idx] = Vec::new();
+            }
+            VoiceScope::PerVoice => {
+                let mut voice_copies = Vec::with_capacity(self.max_voices);
+                for _ in 0..self.max_voices {
+                    let module = create_module(kind, sample_rate, block_size);
+                    let node = ModuleNode {
+                        module,
+                        manifest,
+                        inputs: (0..num_inputs).map(|_| vec![0.0; block_size]).collect(),
+                        outputs: (0..num_outputs).map(|_| vec![0.0; block_size]).collect(),
+                    };
+                    voice_copies.push(Some(node));
+                }
+                self.voice_nodes[idx] = voice_copies;
+                self.global_nodes[idx] = None;
+            }
+        }
     }
 
     pub fn remove_module(&mut self, id: u32) {
-        self.modules.retain(|m| m.id != id);
-        self.connections
-            .retain(|c| c.source_id != id && c.target_id != id);
+        let idx = id as usize;
+        if idx < self.global_nodes.len() {
+            self.global_nodes[idx] = None;
+        }
+        if idx < self.voice_nodes.len() {
+            for v in &mut self.voice_nodes[idx] {
+                *v = None;
+            }
+        }
+        // module_scopes and module_manifests stay for connection routing
+        self.connections.retain(|c| c.source_id != id && c.target_id != id);
     }
 
     pub fn connect(&mut self, source_id: u32, source_port: u32, target_id: u32, target_port: u32) {
+        let sidx = source_id as usize;
+        let tidx = target_id as usize;
+
+        let source_scope = self.module_scopes.get(sidx).and_then(|s| *s);
+        let target_scope = self.module_scopes.get(tidx).and_then(|s| *s);
+
+        if source_scope.is_none() || target_scope.is_none() {
+            return;
+        }
+
+        let source_scope = source_scope.unwrap();
+        let target_scope = target_scope.unwrap();
+
+        // Global -> PerVoice is not allowed
+        if source_scope == VoiceScope::Global && target_scope == VoiceScope::PerVoice {
+            return;
+        }
+
+        // Validate ports using manifest
+        if let (Some(sm), Some(tm)) = (self.module_manifests.get(sidx).and_then(|m| *m), self.module_manifests.get(tidx).and_then(|m| *m)) {
+            if (source_port as usize) >= sm.outputs.len() || (target_port as usize) >= tm.inputs.len() {
+                return;
+            }
+        } else {
+            return;
+        }
+
         self.connections.push(Connection {
             source_id,
             source_port: source_port as usize,
@@ -69,69 +149,184 @@ impl Graph {
         let sp = source_port as usize;
         let tp = target_port as usize;
         self.connections.retain(|c| {
-            !(c.source_id == source_id
-                && c.source_port == sp
-                && c.target_id == target_id
-                && c.target_port == tp)
+            !(c.source_id == source_id && c.source_port == sp && c.target_id == target_id && c.target_port == tp)
         });
     }
 
     pub fn set_param(&mut self, module_id: u32, param_id: u32, value: f32) {
-        if let Some(node) = self.modules.iter_mut().find(|m| m.id == module_id) {
-            node.module.set_param(param_id as usize, value);
-        }
-    }
-
-    pub fn update_voices(&mut self, freq: f32, gate: f32, velocity: f32) {
-        for node in &mut self.modules {
-            node.module.set_voice(freq, gate, velocity);
-        }
-    }
-
-    pub fn process(&mut self, frames: usize) {
-        for node in &mut self.modules {
-            for buf in &mut node.inputs {
-                for s in &mut buf[..frames] {
-                    *s = 0.0;
-                }
-            }
-        }
-        for s in &mut self.master_output[..frames] {
-            *s = 0.0;
-        }
-
-        for c in &self.connections {
-            if let Some(sidx) = self.modules.iter().position(|m| m.id == c.source_id) {
-                if let Some(tidx) = self.modules.iter().position(|m| m.id == c.target_id) {
-                    if sidx == tidx {
-                        continue;
+        let idx = module_id as usize;
+        if let Some(scope) = self.module_scopes.get(idx).and_then(|s| *s) {
+            match scope {
+                VoiceScope::Global => {
+                    if let Some(node) = self.global_nodes.get_mut(idx).and_then(|n| n.as_mut()) {
+                        if (param_id as usize) < node.manifest.parameters.len() {
+                            node.module.set_param(param_id as usize, value);
+                        }
                     }
-                    let src_ptr = &self.modules[sidx] as *const ModuleNode;
-                    let dst_ptr = &mut self.modules[tidx] as *mut ModuleNode;
-                    unsafe {
-                        let outputs = &(*src_ptr).outputs;
-                        let inputs = &(*dst_ptr).inputs;
-                        if c.source_port < outputs.len() && c.target_port < inputs.len() {
-                            let src_buf = &outputs[c.source_port];
-                            let dst_buf = &mut (&mut (*dst_ptr).inputs)[c.target_port];
-                            for i in 0..frames {
-                                dst_buf[i] += src_buf[i];
+                }
+                VoiceScope::PerVoice => {
+                    if let Some(voices) = self.voice_nodes.get_mut(idx) {
+                        for voice_opt in voices.iter_mut() {
+                            if let Some(node) = voice_opt {
+                                if (param_id as usize) < node.manifest.parameters.len() {
+                                    node.module.set_param(param_id as usize, value);
+                                }
                             }
                         }
                     }
                 }
             }
         }
+    }
 
-        for node in &mut self.modules {
-            let input_refs: Vec<&[f32]> = node.inputs.iter().map(|b| &b[..frames]).collect();
-            let mut output_refs: Vec<&mut [f32]> =
-                node.outputs.iter_mut().map(|b| &mut b[..frames]).collect();
-            node.module.process(&input_refs, &mut output_refs, frames);
+    pub fn process(&mut self, frames: usize, voice_states: &[VoiceState]) {
+        let connections = self.connections.clone();
+        let module_scopes = self.module_scopes.clone();
 
-            if node.module.kind() == ModuleKind::Destination {
-                for i in 0..frames {
-                    self.master_output[i] += node.inputs[0][i];
+        // Zero global input buffers
+        for node_opt in &mut self.global_nodes {
+            if let Some(node) = node_opt {
+                for buf in &mut node.inputs {
+                    for s in &mut buf[..frames] {
+                        *s = 0.0;
+                    }
+                }
+            }
+        }
+
+        // Zero per-voice input buffers
+        for voice_vec in &mut self.voice_nodes {
+            for voice_opt in voice_vec.iter_mut() {
+                if let Some(node) = voice_opt {
+                    for buf in &mut node.inputs {
+                        for s in &mut buf[..frames] {
+                            *s = 0.0;
+                        }
+                    }
+                }
+            }
+        }
+
+        for s in &mut self.master_output[..frames] {
+            *s = 0.0;
+        }
+
+        // Get raw pointers for routing without borrow checker conflicts
+        let global_ptr = self.global_nodes.as_mut_ptr();
+        let voice_ptr = self.voice_nodes.as_mut_ptr();
+
+        // Route connections
+        for conn in &connections {
+            let sidx = conn.source_id as usize;
+            let tidx = conn.target_id as usize;
+
+            let source_scope = if sidx < module_scopes.len() {
+                module_scopes[sidx]
+            } else { continue; };
+            let target_scope = if tidx < module_scopes.len() {
+                module_scopes[tidx]
+            } else { continue; };
+
+            match (source_scope, target_scope) {
+                (Some(VoiceScope::Global), Some(VoiceScope::Global)) => {
+                    unsafe {
+                        let src_opt = (*global_ptr.add(sidx)).as_ref();
+                        let dst_opt = (*global_ptr.add(tidx)).as_mut();
+                        if let (Some(src), Some(dst)) = (src_opt, dst_opt) {
+                            if conn.source_port < src.outputs.len() && conn.target_port < dst.inputs.len() {
+                                let src_buf = &src.outputs[conn.source_port];
+                                let dst_buf = &mut dst.inputs[conn.target_port];
+                                for i in 0..frames {
+                                    dst_buf[i] += src_buf[i];
+                                }
+                            }
+                        }
+                    }
+                }
+                (Some(VoiceScope::PerVoice), Some(VoiceScope::PerVoice)) => {
+                    for v in 0..voice_states.len().min(self.max_voices) {
+                        if !voice_states[v].active { continue; }
+                        unsafe {
+                            let src_vec = &*voice_ptr.add(sidx);
+                            let dst_vec = &mut *voice_ptr.add(tidx);
+                            if let (Some(src), Some(dst)) = (
+                                src_vec.get(v).and_then(|n| n.as_ref()),
+                                dst_vec.get_mut(v).and_then(|n| n.as_mut())
+                            ) {
+                                if conn.source_port < src.outputs.len() && conn.target_port < dst.inputs.len() {
+                                    let src_buf = &src.outputs[conn.source_port];
+                                    let dst_buf = &mut dst.inputs[conn.target_port];
+                                    for i in 0..frames {
+                                        dst_buf[i] += src_buf[i];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                (Some(VoiceScope::PerVoice), Some(VoiceScope::Global)) => {
+                    for v in 0..voice_states.len().min(self.max_voices) {
+                        if !voice_states[v].active { continue; }
+                        unsafe {
+                            let src_vec = &*voice_ptr.add(sidx);
+                            let dst_opt = (*global_ptr.add(tidx)).as_mut();
+                            if let (Some(src), Some(dst)) = (
+                                src_vec.get(v).and_then(|n| n.as_ref()),
+                                dst_opt
+                            ) {
+                                if conn.source_port < src.outputs.len() && conn.target_port < dst.inputs.len() {
+                                    let src_buf = &src.outputs[conn.source_port];
+                                    let dst_buf = &mut dst.inputs[conn.target_port];
+                                    for i in 0..frames {
+                                        dst_buf[i] += src_buf[i];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // Update voice state and process per-voice modules
+        let active_count = voice_states.len().min(self.max_voices);
+        for v in 0..active_count {
+            let vs = &voice_states[v];
+            if !vs.active { continue; }
+
+            // Set voice state on all per-voice modules for this voice
+            for voice_vec in &mut self.voice_nodes {
+                if let Some(node) = voice_vec.get_mut(v).and_then(|n| n.as_mut()) {
+                    node.module.set_voice(vs.freq, vs.gate, vs.velocity);
+                }
+            }
+
+            // Process all per-voice modules for this voice
+            for voice_vec in &mut self.voice_nodes {
+                if let Some(node) = voice_vec.get_mut(v).and_then(|n| n.as_mut()) {
+                    let input_refs: Vec<&[f32]> =
+                        node.inputs.iter().map(|b| &b[..frames]).collect();
+                    let mut output_refs: Vec<&mut [f32]> =
+                        node.outputs.iter_mut().map(|b| &mut b[..frames]).collect();
+                    node.module.process(&input_refs, &mut output_refs, frames);
+                }
+            }
+        }
+
+        // Process global modules
+        for node_opt in &mut self.global_nodes {
+            if let Some(node) = node_opt {
+                let input_refs: Vec<&[f32]> =
+                    node.inputs.iter().map(|b| &b[..frames]).collect();
+                let mut output_refs: Vec<&mut [f32]> =
+                    node.outputs.iter_mut().map(|b| &mut b[..frames]).collect();
+                node.module.process(&input_refs, &mut output_refs, frames);
+
+                if node.module.kind() == ModuleKind::Destination {
+                    for i in 0..frames {
+                        self.master_output[i] += node.inputs[0][i];
+                    }
                 }
             }
         }
