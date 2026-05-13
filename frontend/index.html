@@ -17,9 +17,9 @@
                     <h1>vibra</h1>
                 </div>
                 <div class="toolbar">
-                    <button id="btn-start">start audio</button>
+                    <button id="btn-start">start</button>
                     <select id="example-select" class="example-select">
-                        <option value="">load example</option>
+                        <option value="">examples</option>
                         <option value="hello">simple sine</option>
                         <option value="pluck">pluck synth</option>
                         <option value="tremolo">tremolo pad</option>
@@ -31,11 +31,10 @@
                         <option value="space">space drone</option>
                         <option value="minecraft">c418 pad</option>
                     </select>
-                    <button id="btn-arrange">arrange</button>
-                    <button id="btn-snap" aria-pressed="true">snap on</button>
+                    <button id="btn-snap" aria-pressed="true">snap</button>
                     <button id="btn-clear">clear</button>
-                    <button id="btn-export">export</button>
-                    <button id="btn-import">import</button>
+                    <button id="btn-export">save</button>
+                    <button id="btn-import">load</button>
                     <input
                         type="file"
                         id="file-import"
@@ -60,6 +59,15 @@
                     <div class="rack-grid" id="rack-grid">
                         <svg class="cables" id="cables"></svg>
                     </div>
+                    <button id="btn-arrange" class="fab-arrange" title="auto-arrange modules">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="20" height="20">
+                            <rect width="256" height="256" fill="none"/>
+                            <rect x="48" y="48" width="64" height="64" rx="8" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="20"/>
+                            <rect x="144" y="48" width="64" height="64" rx="8" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="20"/>
+                            <rect x="48" y="144" width="64" height="64" rx="8" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="20"/>
+                            <rect x="144" y="144" width="64" height="64" rx="8" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="20"/>
+                        </svg>
+                    </button>
                 </main>
             </div>
             <footer class="app-footer">

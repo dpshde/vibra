@@ -239,6 +239,38 @@ button[aria-pressed="true"] {
     min-height: 100%;
 }
 
+.fab-arrange {
+    position: fixed;
+    bottom: 140px;
+    right: 20px;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    color: var(--fg);
+    box-shadow: var(--card-shadow);
+    z-index: 50;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.fab-arrange:hover {
+    background: var(--fg);
+    color: var(--bg);
+    border-color: var(--fg);
+}
+
+.fab-arrange:active {
+    background: var(--accent);
+    color: #ffffff;
+    border-color: var(--accent);
+}
+
 /* CABLES */
 .cables {
     position: absolute;

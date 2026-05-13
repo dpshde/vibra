@@ -49,6 +49,7 @@ let patchBay = null;
 let graph = null;
 let bridge = null;
 let runtimeSilent = false;
+let pendingExample = null;
 
 function updatePatchWarning() {
   const banner = document.getElementById("patch-warning");
@@ -196,23 +197,53 @@ async function initAudio() {
   // Initialize default voice config
   patchBay.setVoiceConfig({ mode: "poly", polyphony: 8, unisonCount: 1, unisonDetune: 0 });
 
-  const arrangeButton = document.getElementById("btn-arrange");
-  arrangeButton.onclick = () => {
-    graph.arrangeModulesByIO();
-  };
-
   const snapButton = document.getElementById("btn-snap");
-  const renderSnapButton = () => {
-    snapButton.textContent = graph.snapEnabled ? "snap on" : "snap off";
-    snapButton.setAttribute("aria-pressed", String(graph.snapEnabled));
-  };
   snapButton.onclick = () => {
     graph.setSnapEnabled(!graph.snapEnabled);
-    renderSnapButton();
+    snapButton.setAttribute("aria-pressed", String(graph.snapEnabled));
   };
-  renderSnapButton();
 
-  loadHelloSine(patchBay, graph);
+  const arrangeButton = document.getElementById("btn-arrange");
+  arrangeButton.onclick = () => {
+    if (graph) graph.arrangeModulesByIO();
+  };
+
+  if (pendingExample) {
+    switch (pendingExample) {
+      case "hello":
+        loadHelloSine(patchBay, graph);
+        break;
+      case "pluck":
+        loadPluckSynth(patchBay, graph);
+        break;
+      case "tremolo":
+        loadTremoloPad(patchBay, graph);
+        break;
+      case "echo":
+        loadEchoPluck(patchBay, graph);
+        break;
+      case "perc":
+        loadNoisePercussion(patchBay, graph);
+        break;
+      case "acid":
+        loadAcidBass(patchBay, graph);
+        break;
+      case "juno":
+        loadJunoPad(patchBay, graph);
+        break;
+      case "fmbell":
+        loadFmBell(patchBay, graph);
+        break;
+      case "space":
+        loadSpaceDrone(patchBay, graph);
+        break;
+      case "minecraft":
+        loadMinecraftPluck(patchBay, graph);
+        break;
+    }
+  } else {
+    loadHelloSine(patchBay, graph);
+  }
   updatePatchWarning();
 
   const palette = document.getElementById("palette-list");
@@ -228,48 +259,51 @@ async function initAudio() {
       const val = exampleSelect.value;
       if (!val) return;
       if (!ctx) {
+        pendingExample = val;
         await initAudio();
         const startBtn = document.getElementById("btn-start");
-        startBtn.textContent = "audio on";
+        startBtn.textContent = "on";
         startBtn.disabled = true;
+      } else {
+        for (const id of Array.from(patchBay.modules.keys())) {
+          graph.removeModule(id);
+        }
+        runtimeSilent = false;
+        switch (val) {
+          case "hello":
+            loadHelloSine(patchBay, graph);
+            break;
+          case "pluck":
+            loadPluckSynth(patchBay, graph);
+            break;
+          case "tremolo":
+            loadTremoloPad(patchBay, graph);
+            break;
+          case "echo":
+            loadEchoPluck(patchBay, graph);
+            break;
+          case "perc":
+            loadNoisePercussion(patchBay, graph);
+            break;
+          case "acid":
+            loadAcidBass(patchBay, graph);
+            break;
+          case "juno":
+            loadJunoPad(patchBay, graph);
+            break;
+          case "fmbell":
+            loadFmBell(patchBay, graph);
+            break;
+          case "space":
+            loadSpaceDrone(patchBay, graph);
+            break;
+          case "minecraft":
+            loadMinecraftPluck(patchBay, graph);
+            break;
+        }
+        updatePatchWarning();
       }
-      for (const id of Array.from(patchBay.modules.keys())) {
-        graph.removeModule(id);
-      }
-      runtimeSilent = false;
-      switch (val) {
-        case "hello":
-          loadHelloSine(patchBay, graph);
-          break;
-        case "pluck":
-          loadPluckSynth(patchBay, graph);
-          break;
-        case "tremolo":
-          loadTremoloPad(patchBay, graph);
-          break;
-        case "echo":
-          loadEchoPluck(patchBay, graph);
-          break;
-        case "perc":
-          loadNoisePercussion(patchBay, graph);
-          break;
-        case "acid":
-          loadAcidBass(patchBay, graph);
-          break;
-        case "juno":
-          loadJunoPad(patchBay, graph);
-          break;
-        case "fmbell":
-          loadFmBell(patchBay, graph);
-          break;
-        case "space":
-          loadSpaceDrone(patchBay, graph);
-          break;
-        case "minecraft":
-          loadMinecraftPluck(patchBay, graph);
-          break;
-      }
-      updatePatchWarning();
+      pendingExample = null;
       exampleSelect.value = "";
     };
   }
@@ -316,7 +350,7 @@ async function initAudio() {
 
 document.getElementById("btn-start").onclick = async () => {
   await initAudio();
-  document.getElementById("btn-start").textContent = "audio on";
+  document.getElementById("btn-start").textContent = "on";
   document.getElementById("btn-start").disabled = true;
 };
 
