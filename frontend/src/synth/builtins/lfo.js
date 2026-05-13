@@ -14,14 +14,16 @@ export default {
       name: "FM",
       description:
         "Frequency Modulation input. An audio signal here warps the LFO's speed in real time.",
-      type: "audio",
+      signalType: "pitch",
+      accepts: ["pitch", "modulation"],
     },
     {
       id: "sync",
       name: "Sync",
       description:
         "Reset trigger. A spike here restarts the LFO waveform from the beginning, great for rhythmic locking.",
-      type: "audio",
+      signalType: "trigger",
+      accepts: ["trigger", "audio"],
     },
   ],
   outputs: [
@@ -30,7 +32,8 @@ export default {
       name: "Out",
       description:
         "The slow waveform output. Connect to a VCA/Multiplier or any modulation input to create movement.",
-      type: "audio",
+      signalType: "modulation",
+      accepts: [],
     },
   ],
   parameters: [
@@ -77,6 +80,16 @@ export default {
       values: ["off", "on"],
       default: "off",
       paramId: 3,
+    },
+    {
+      id: "unipolar",
+      name: "Unipolar",
+      description:
+        "ON: output ranges 0 to 1 (perfect for volume tremolo). OFF: output ranges -1 to 1 (for vibrato/filter wobble).",
+      type: "enum",
+      values: ["off", "on"],
+      default: "off",
+      paramId: 4,
     },
   ],
   create() {

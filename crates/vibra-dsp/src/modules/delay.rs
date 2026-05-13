@@ -1,4 +1,4 @@
-use super::{Module, ModuleKind, ModuleManifest, ParamDef, PortDef, PortRate, ParamUnit};
+use super::{Module, ModuleKind, ModuleManifest, ParamDef, PortDef, SignalType, ParamUnit};
 
 pub struct Delay {
     sample_rate: f32,
@@ -15,8 +15,8 @@ impl Delay {
         name: "Delay",
         category: "effect",
         kind: ModuleKind::Delay,
-        inputs: &[PortDef { id: "in", name: "In", rate: PortRate::Audio }],
-        outputs: &[PortDef { id: "out", name: "Out", rate: PortRate::Audio }],
+        inputs: &[PortDef { id: "in", name: "In", signal_type: SignalType::Audio, accepts: &[SignalType::Audio] }],
+        outputs: &[PortDef { id: "out", name: "Out", signal_type: SignalType::Audio, accepts: &[] }],
         parameters: &[
             ParamDef { id: "delay_ms", name: "Delay Time", description: "Delay time in milliseconds.", unit: ParamUnit::Ms, min: 1.0, max: 5000.0, default: 250.0, enum_values: &[] },
             ParamDef { id: "feedback", name: "Feedback", description: "Amount of delayed signal fed back into the input.", unit: ParamUnit::Ratio, min: 0.0, max: 0.99, default: 0.3, enum_values: &[] },

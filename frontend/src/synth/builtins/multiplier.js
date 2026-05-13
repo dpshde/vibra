@@ -13,13 +13,15 @@ export default {
       id: "a",
       name: "Sound (A)",
       description: "The main audio signal — usually an oscillator or noise.",
-      type: "audio",
+      signalType: "audio",
+      accepts: ["audio"],
     },
     {
       id: "b",
       name: "Mod (B)",
       description: "The control signal — usually an Envelope or LFO. This gets multiplied with the sound to shape it.",
-      type: "audio",
+      signalType: "level",
+      accepts: ["level", "modulation"],
     },
   ],
   outputs: [
@@ -27,7 +29,8 @@ export default {
       id: "out",
       name: "Out",
       description: "The multiplied result. If B is an envelope, this output will be the shaped sound.",
-      type: "audio",
+      signalType: "audio",
+      accepts: [],
     },
   ],
   parameters: [

@@ -59,14 +59,16 @@ export class BuiltinRegistry {
         id: p.id,
         name: p.name,
         description: existing.inputs?.find((i) => i.id === p.id)?.description || "",
-        type: p.rate,
+        signalType: p.signalType || existing.inputs?.find((i) => i.id === p.id)?.signalType || "audio",
+        accepts: p.accepts || existing.inputs?.find((i) => i.id === p.id)?.accepts || [],
       }));
 
       const outputs = (wm.outputs || []).map((p) => ({
         id: p.id,
         name: p.name,
         description: existing.outputs?.find((o) => o.id === p.id)?.description || "",
-        type: p.rate,
+        signalType: p.signalType || existing.outputs?.find((o) => o.id === p.id)?.signalType || "audio",
+        accepts: p.accepts || existing.outputs?.find((o) => o.id === p.id)?.accepts || [],
       }));
 
       const merged = {

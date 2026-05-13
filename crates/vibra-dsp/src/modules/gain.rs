@@ -1,4 +1,4 @@
-use super::{Module, ModuleKind, ModuleManifest, ParamDef, PortDef, PortRate, ParamUnit};
+use super::{Module, ModuleKind, ModuleManifest, ParamDef, PortDef, SignalType, ParamUnit};
 use crate::param::SmoothedParam;
 
 pub struct Gain {
@@ -11,8 +11,8 @@ impl Gain {
         name: "Gain",
         category: "utility",
         kind: ModuleKind::Gain,
-        inputs: &[PortDef { id: "in", name: "In", rate: PortRate::Audio }],
-        outputs: &[PortDef { id: "out", name: "Out", rate: PortRate::Audio }],
+        inputs: &[PortDef { id: "in", name: "In", signal_type: SignalType::Audio, accepts: &[SignalType::Audio] }],
+        outputs: &[PortDef { id: "out", name: "Out", signal_type: SignalType::Audio, accepts: &[] }],
         parameters: &[
             ParamDef { id: "gain", name: "Volume", description: "Volume multiplier.", unit: ParamUnit::Ratio, min: 0.0, max: 2.0, default: 1.0, enum_values: &[] },
         ],

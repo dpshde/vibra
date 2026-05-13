@@ -1,4 +1,4 @@
-use super::{Module, ModuleKind, ModuleManifest, ParamDef, PortDef, PortRate, ParamUnit};
+use super::{Module, ModuleKind, ModuleManifest, ParamDef, PortDef, SignalType, ParamUnit};
 
 const TABLE_SIZE: usize = 2048;
 
@@ -26,7 +26,7 @@ impl Oscillator {
         category: "source",
         kind: ModuleKind::Oscillator,
         inputs: &[],
-        outputs: &[PortDef { id: "out", name: "Out", rate: PortRate::Audio }],
+        outputs: &[PortDef { id: "out", name: "Out", signal_type: SignalType::Audio, accepts: &[] }],
         parameters: &[
             ParamDef { id: "waveform", name: "Waveform", description: "The basic shape of the sound wave.", unit: ParamUnit::Enum, min: 0.0, max: 3.0, default: 0.0, enum_values: &["sine", "square", "sawtooth", "triangle"] },
             ParamDef { id: "frequency", name: "Pitch (Hz)", description: "The pitch of the note in Hertz.", unit: ParamUnit::Hz, min: 20.0, max: 20000.0, default: 440.0, enum_values: &[] },

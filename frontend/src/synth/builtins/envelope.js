@@ -14,7 +14,8 @@ export default {
       name: "Gate",
       description:
         "Optional override for the keyboard gate. If left unconnected, the keyboard automatically triggers this envelope when you press a key.",
-      type: "audio",
+      signalType: "trigger",
+      accepts: ["trigger", "audio"],
     },
   ],
   outputs: [
@@ -23,7 +24,8 @@ export default {
       name: "Out",
       description:
         "Outputs a control signal from 0 to 1 that follows the envelope shape. Connect this to a Multiplier (VCA) to shape volume, or to Filter to shape brightness.",
-      type: "audio",
+      signalType: "level",
+      accepts: [],
     },
   ],
   parameters: [

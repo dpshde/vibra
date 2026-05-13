@@ -1,4 +1,4 @@
-use super::{Module, ModuleKind, ModuleManifest, ParamDef, PortDef, PortRate, ParamUnit};
+use super::{Module, ModuleKind, ModuleManifest, ParamDef, PortDef, SignalType, ParamUnit};
 
 pub struct Pan {
     pan: f32, // -1.0 = full left, 0.0 = center, 1.0 = full right
@@ -10,10 +10,10 @@ impl Pan {
         name: "Pan",
         category: "utility",
         kind: ModuleKind::Pan,
-        inputs: &[PortDef { id: "in", name: "In", rate: PortRate::Audio }],
+        inputs: &[PortDef { id: "in", name: "In", signal_type: SignalType::Audio, accepts: &[SignalType::Audio] }],
         outputs: &[
-            PortDef { id: "left", name: "Left", rate: PortRate::Audio },
-            PortDef { id: "right", name: "Right", rate: PortRate::Audio },
+            PortDef { id: "left", name: "Left", signal_type: SignalType::Audio, accepts: &[] },
+            PortDef { id: "right", name: "Right", signal_type: SignalType::Audio, accepts: &[] },
         ],
         parameters: &[
             ParamDef { id: "pan", name: "Pan", description: "Stereo pan position.", unit: ParamUnit::None, min: -1.0, max: 1.0, default: 0.0, enum_values: &[] },

@@ -36,17 +36,26 @@ impl ModuleKind {
 
 pub use crate::param::{ParamDef, ParamUnit};
 
+/// Semantic signal type describing what a port produces or expects.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PortRate {
+pub enum SignalType {
     Audio,
-    Control,
+    Trigger,
+    Pitch,
+    Level,
+    Modulation,
+    Blend,
 }
 
-impl PortRate {
+impl SignalType {
     pub fn as_str(&self) -> &'static str {
         match self {
-            PortRate::Audio => "audio",
-            PortRate::Control => "control",
+            SignalType::Audio => "audio",
+            SignalType::Trigger => "trigger",
+            SignalType::Pitch => "pitch",
+            SignalType::Level => "level",
+            SignalType::Modulation => "modulation",
+            SignalType::Blend => "blend",
         }
     }
 }
@@ -55,7 +64,10 @@ impl PortRate {
 pub struct PortDef {
     pub id: &'static str,
     pub name: &'static str,
-    pub rate: PortRate,
+    pub signal_type: SignalType,
+    /// For input ports: which source types are explicitly welcomed.
+    /// Empty slice means any source is accepted without guidance.
+    pub accepts: &'static [SignalType],
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -147,7 +159,7 @@ const DESTINATION_MANIFEST: ModuleManifest = ModuleManifest {
     name: "Destination",
     category: "output",
     kind: ModuleKind::Destination,
-    inputs: &[PortDef { id: "in", name: "In", rate: PortRate::Audio }],
+    inputs: &[PortDef { id: "in", name: "In", signal_type: SignalType::Audio, accepts: &[SignalType::Audio] }],
     outputs: &[],
     parameters: &[],
     voice_scope: VoiceScope::Global,

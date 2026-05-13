@@ -1,4 +1,4 @@
-use super::{Module, ModuleKind, ModuleManifest, ParamDef, PortDef, PortRate, ParamUnit};
+use super::{Module, ModuleKind, ModuleManifest, ParamDef, PortDef, SignalType, ParamUnit};
 
 pub struct BiquadFilter {
     sample_rate: f32,
@@ -31,8 +31,8 @@ impl BiquadFilter {
         name: "Filter",
         category: "effect",
         kind: ModuleKind::Filter,
-        inputs: &[PortDef { id: "in", name: "In", rate: PortRate::Audio }],
-        outputs: &[PortDef { id: "out", name: "Out", rate: PortRate::Audio }],
+        inputs: &[PortDef { id: "in", name: "In", signal_type: SignalType::Audio, accepts: &[SignalType::Audio] }],
+        outputs: &[PortDef { id: "out", name: "Out", signal_type: SignalType::Audio, accepts: &[] }],
         parameters: &[
             ParamDef { id: "frequency", name: "Cutoff", description: "The frequency where filtering begins.", unit: ParamUnit::Hz, min: 20.0, max: 20000.0, default: 1000.0, enum_values: &[] },
             ParamDef { id: "resonance", name: "Peak (Res)", description: "Boosts the frequencies right at the cutoff point.", unit: ParamUnit::Ratio, min: 0.01, max: 10.0, default: 0.7, enum_values: &[] },

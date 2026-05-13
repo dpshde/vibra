@@ -13,7 +13,8 @@ export default {
       id: "in",
       name: "In",
       description: "The signal to visualize. Passes through unchanged.",
-      type: "audio",
+      signalType: "audio",
+      accepts: ["audio"],
     },
   ],
   outputs: [
@@ -22,7 +23,8 @@ export default {
       name: "Out",
       description:
         "The same signal, unchanged. You can patch this to the next module.",
-      type: "audio",
+      signalType: "audio",
+      accepts: [],
     },
   ],
   parameters: [],

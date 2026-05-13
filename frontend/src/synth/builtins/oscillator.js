@@ -15,7 +15,8 @@ export default {
       name: "Out",
       description:
         "The generated waveform. Connect this to a Filter, Gain, or VCA to shape it.",
-      type: "audio",
+      signalType: "audio",
+      accepts: [],
     },
   ],
   parameters: [

@@ -13,7 +13,8 @@ export default {
       id: "in",
       name: "In",
       description: "The sound to amplify or attenuate.",
-      type: "audio",
+      signalType: "audio",
+      accepts: ["audio"],
     },
   ],
   outputs: [
@@ -21,7 +22,8 @@ export default {
       id: "out",
       name: "Out",
       description: "The sound at the new volume level.",
-      type: "audio",
+      signalType: "audio",
+      accepts: [],
     },
   ],
   parameters: [

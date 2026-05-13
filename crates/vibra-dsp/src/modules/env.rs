@@ -1,4 +1,4 @@
-use super::{Module, ModuleKind, ModuleManifest, ParamDef, PortDef, PortRate, ParamUnit};
+use super::{Module, ModuleKind, ModuleManifest, ParamDef, PortDef, SignalType, ParamUnit};
 
 pub struct Adsr {
     sample_rate: f32,
@@ -28,8 +28,8 @@ impl Adsr {
         name: "Envelope",
         category: "modulation",
         kind: ModuleKind::Adsr,
-        inputs: &[PortDef { id: "gate", name: "Gate", rate: PortRate::Audio }],
-        outputs: &[PortDef { id: "out", name: "Out", rate: PortRate::Audio }],
+        inputs: &[PortDef { id: "gate", name: "Gate", signal_type: SignalType::Trigger, accepts: &[SignalType::Trigger, SignalType::Audio] }],
+        outputs: &[PortDef { id: "out", name: "Out", signal_type: SignalType::Level, accepts: &[] }],
         parameters: &[
             ParamDef { id: "attack", name: "Attack", description: "How quickly the sound rises from silence.", unit: ParamUnit::S, min: 0.001, max: 5.0, default: 0.01, enum_values: &[] },
             ParamDef { id: "decay", name: "Decay", description: "How quickly the sound falls from peak to sustain.", unit: ParamUnit::S, min: 0.001, max: 5.0, default: 0.3, enum_values: &[] },

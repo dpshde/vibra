@@ -1,4 +1,4 @@
-use super::{Module, ModuleKind, ModuleManifest, ParamDef, PortDef, PortRate, ParamUnit};
+use super::{Module, ModuleKind, ModuleManifest, ParamDef, PortDef, SignalType, ParamUnit};
 
 const TABLE_SIZE: usize = 2048;
 
@@ -13,6 +13,8 @@ pub struct Lfo {
     retrigger: bool,
     held_random: f32,
     cycle_count: u32,
+    /// false = bipolar (-1..1), true = unipolar (0..1)
+    unipolar: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -31,15 +33,16 @@ impl Lfo {
         category: "modulation",
         kind: ModuleKind::Lfo,
         inputs: &[
-            PortDef { id: "fm", name: "FM", rate: PortRate::Audio },
-            PortDef { id: "sync", name: "Sync", rate: PortRate::Audio },
+            PortDef { id: "fm", name: "FM", signal_type: SignalType::Pitch, accepts: &[SignalType::Pitch, SignalType::Modulation] },
+            PortDef { id: "sync", name: "Sync", signal_type: SignalType::Trigger, accepts: &[SignalType::Trigger, SignalType::Audio] },
         ],
-        outputs: &[PortDef { id: "out", name: "Out", rate: PortRate::Audio }],
+        outputs: &[PortDef { id: "out", name: "Out", signal_type: SignalType::Modulation, accepts: &[] }],
         parameters: &[
             ParamDef { id: "waveform", name: "Waveform", description: "The shape of the wobble.", unit: ParamUnit::Enum, min: 0.0, max: 4.0, default: 0.0, enum_values: &["sine", "square", "sawtooth", "triangle", "random"] },
             ParamDef { id: "frequency", name: "Speed (Hz)", description: "How fast the wobble happens.", unit: ParamUnit::Hz, min: 0.01, max: 100.0, default: 1.0, enum_values: &[] },
             ParamDef { id: "amplitude", name: "Depth", description: "How intense the wobble is.", unit: ParamUnit::Ratio, min: 0.0, max: 2.0, default: 1.0, enum_values: &[] },
             ParamDef { id: "retrigger", name: "Retrigger", description: "Restarts the LFO on each note.", unit: ParamUnit::Boolean, min: 0.0, max: 1.0, default: 1.0, enum_values: &["off", "on"] },
+            ParamDef { id: "unipolar", name: "Unipolar", description: "ON: output 0..1 for amplitude modulation. OFF: output -1..1 for pitch/filter.", unit: ParamUnit::Boolean, min: 0.0, max: 1.0, default: 0.0, enum_values: &["off", "on"] },
         ],
         voice_scope: super::VoiceScope::Global,
         create: |sr, _bs| Box::new(Lfo::new(sr)),
@@ -79,6 +82,7 @@ impl Lfo {
             retrigger: false,
             held_random: 0.0,
             cycle_count: 0,
+            unipolar: false,
         }
     }
 
@@ -134,7 +138,12 @@ impl Module for Lfo {
                 }
             };
 
-            out[i] = sample * self.amplitude;
+            let sample = if self.unipolar {
+                (sample * 0.5 + 0.5) * self.amplitude
+            } else {
+                sample * self.amplitude
+            };
+            out[i] = sample;
             self.phase += phase_inc;
             if self.phase >= 1.0 {
                 self.phase -= 1.0;
@@ -156,6 +165,7 @@ impl Module for Lfo {
             1 => self.freq = value.max(0.01).min(100.0),
             2 => self.amplitude = value.max(0.0).min(2.0),
             3 => self.retrigger = value > 0.5,
+            4 => self.unipolar = value > 0.5,
             _ => {}
         }
     }

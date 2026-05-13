@@ -13,7 +13,8 @@ export default {
       id: "in",
       name: "In",
       description: "The sound to shape.",
-      type: "audio",
+      signalType: "audio",
+      accepts: ["audio"],
     },
   ],
   outputs: [
@@ -21,7 +22,8 @@ export default {
       id: "out",
       name: "Out",
       description: "The shaped sound with frequencies removed.",
-      type: "audio",
+      signalType: "audio",
+      accepts: [],
     },
   ],
   parameters: [

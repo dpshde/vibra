@@ -81,6 +81,7 @@ export class NodeGraph {
       if (this.connectState) {
         e.preventDefault();
         this.onConnectMove(e.clientX, e.clientY);
+        this.onConnectHover(e.clientX, e.clientY);
       }
     });
 
@@ -113,6 +114,7 @@ export class NodeGraph {
             console.error("CONNECTION FAILED:", err);
           }
         }
+        this.clearPortHighlights();
         this.connectState.tempCable.remove();
         this.connectState = null;
       }
@@ -895,6 +897,27 @@ export class NodeGraph {
     tempCable.setAttribute("class", "cable temp");
     this.cablesSvg.appendChild(tempCable);
     this.connectState = { sourceId: moduleId, outputId: portId, tempCable };
+    this.highlightPorts(moduleId, portId);
+  }
+
+  clearPortHighlights() {
+    for (const mod of this.modules.values()) {
+      for (const port of Object.values(mod.inputEls)) {
+        port.classList.remove("port-exact", "port-compatible", "port-mismatch");
+      }
+    }
+  }
+
+  highlightPorts(sourceId, outputId) {
+    for (const [id, mod] of this.modules) {
+      if (id === sourceId) continue;
+      for (const [inputId, port] of Object.entries(mod.inputEls)) {
+        const compat = this.patchBay.getCompatibility(sourceId, outputId, id, inputId);
+        if (compat && compat.level) {
+          port.classList.add(`port-${compat.level}`);
+        }
+      }
+    }
   }
 
   onConnectMove(mx, my) {
@@ -909,6 +932,50 @@ export class NodeGraph {
     const y2 = my - containerRect.top;
     const d = `M ${x1} ${y1} C ${x1 + 50} ${y1}, ${x2 - 50} ${y2}, ${x2} ${y2}`;
     this.connectState.tempCable.setAttribute("d", d);
+  }
+
+  onConnectHover(mx, my) {
+    if (!this.connectState) return;
+    const port = document.elementFromPoint(mx, my)?.closest(".port.input");
+    if (!port) {
+      this.clearHoverTooltip();
+      return;
+    }
+    const targetModuleEl = port.closest(".module-node");
+    const targetId = Number(targetModuleEl.dataset.id);
+    const inputId = port.dataset.port;
+    const compat = this.patchBay.getCompatibility(
+      this.connectState.sourceId,
+      this.connectState.outputId,
+      targetId,
+      inputId,
+    );
+    if (compat && compat.message) {
+      this.showHoverTooltip(mx, my, compat.message);
+    } else {
+      this.clearHoverTooltip();
+    }
+  }
+
+  showHoverTooltip(mx, my, text) {
+    this.clearHoverTooltip();
+    const tooltip = document.createElement("div");
+    tooltip.className = "port-tooltip";
+    tooltip.textContent = text;
+    tooltip.style.position = "fixed";
+    tooltip.style.left = `${mx + 12}px`;
+    tooltip.style.top = `${my + 12}px`;
+    tooltip.style.zIndex = "10000";
+    tooltip.style.pointerEvents = "none";
+    document.body.appendChild(tooltip);
+    this._tooltipEl = tooltip;
+  }
+
+  clearHoverTooltip() {
+    if (this._tooltipEl) {
+      this._tooltipEl.remove();
+      this._tooltipEl = null;
+    }
   }
 
   redrawCables() {

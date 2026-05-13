@@ -1,4 +1,4 @@
-use super::{Module, ModuleKind, ModuleManifest, ParamDef, PortDef, PortRate, ParamUnit};
+use super::{Module, ModuleKind, ModuleManifest, ParamDef, PortDef, SignalType, ParamUnit};
 
 pub struct Noise {
     seed: u32,
@@ -13,7 +13,7 @@ impl Noise {
         category: "source",
         kind: ModuleKind::Noise,
         inputs: &[],
-        outputs: &[PortDef { id: "out", name: "Out", rate: PortRate::Audio }],
+        outputs: &[PortDef { id: "out", name: "Out", signal_type: SignalType::Audio, accepts: &[] }],
         parameters: &[
             ParamDef { id: "color", name: "Color", description: "Amount of lowpass filtering on the noise.", unit: ParamUnit::Ratio, min: 0.0, max: 1.0, default: 0.0, enum_values: &[] },
         ],

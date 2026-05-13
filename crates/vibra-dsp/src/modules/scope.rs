@@ -1,4 +1,4 @@
-use super::{Module, ModuleKind, ModuleManifest, PortDef, PortRate};
+use super::{Module, ModuleKind, ModuleManifest, PortDef, SignalType};
 
 pub struct Scope {
     _block_size: usize,
@@ -10,8 +10,8 @@ impl Scope {
         name: "Scope",
         category: "utility",
         kind: ModuleKind::Scope,
-        inputs: &[PortDef { id: "in", name: "In", rate: PortRate::Audio }],
-        outputs: &[PortDef { id: "out", name: "Out", rate: PortRate::Audio }],
+        inputs: &[PortDef { id: "in", name: "In", signal_type: SignalType::Audio, accepts: &[SignalType::Audio] }],
+        outputs: &[PortDef { id: "out", name: "Out", signal_type: SignalType::Audio, accepts: &[] }],
         parameters: &[],
         voice_scope: super::VoiceScope::Global,
         create: |_sr, bs| Box::new(Scope::new(bs)),

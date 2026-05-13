@@ -11,6 +11,9 @@ import { loadPluckSynth } from "./examples/pluck-synth.js";
 import { loadTremoloPad } from "./examples/tremolo-pad.js";
 import { loadEchoPluck } from "./examples/echo-pluck.js";
 import { loadNoisePercussion } from "./examples/noise-perc.js";
+import { loadAcidBass } from "./examples/acid-bass.js";
+import { loadJunoPad } from "./examples/juno-pad.js";
+import { loadFmBell } from "./examples/fm-bell.js";
 import { loadPlugins } from "./plugin/sdk.js";
 import { exportOSP, importOSP } from "./patch-format/osp.js";
 // Built-in manifests
@@ -247,6 +250,15 @@ async function initAudio() {
           break;
         case "perc":
           loadNoisePercussion(patchBay, graph);
+          break;
+        case "acid":
+          loadAcidBass(patchBay, graph);
+          break;
+        case "juno":
+          loadJunoPad(patchBay, graph);
+          break;
+        case "fmbell":
+          loadFmBell(patchBay, graph);
           break;
       }
       updatePatchWarning();

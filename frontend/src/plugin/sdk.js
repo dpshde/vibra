@@ -27,6 +27,19 @@ export function validateManifest(manifest) {
   if (typeof manifest.create !== 'function') throw new Error('PLUGIN MISSING create()')
   if (typeof manifest.update !== 'function') manifest.update = () => {}
   if (typeof manifest.destroy !== 'function') manifest.destroy = () => {}
+  // Validate port signalType and accepts
+  const validTypes = ['audio', 'trigger', 'pitch', 'level', 'modulation', 'blend']
+  for (const port of [...manifest.inputs, ...manifest.outputs]) {
+    if (port.signalType && !validTypes.includes(port.signalType)) {
+      console.warn(`PLUGIN ${manifest.id}: unknown signalType "${port.signalType}" for port "${port.id}"`)
+    }
+    if (port.type && !port.signalType) {
+      port.signalType = port.type === 'control' ? 'modulation' : 'audio'
+      delete port.type
+    }
+    if (!port.signalType) port.signalType = 'audio'
+    if (!Array.isArray(port.accepts)) port.accepts = []
+  }
   return manifest
 }
 

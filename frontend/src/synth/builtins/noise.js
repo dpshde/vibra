@@ -15,7 +15,8 @@ export default {
       name: "Out",
       description:
         "The noise signal. Connect to a Filter to shape the color, then to a VCA to gate it into percussion.",
-      type: "audio",
+      signalType: "audio",
+      accepts: [],
     },
   ],
   parameters: [

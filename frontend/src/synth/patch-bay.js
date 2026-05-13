@@ -1,5 +1,81 @@
 import { ModuleInstance } from "./module.js";
 
+const COMPATIBILITY_MESSAGES = {
+  exact: null,
+  compatible: {
+    "modulation-level": {
+      text: "Modulation into a Level input creates dynamic shaping — tremolo, wah, or evolving textures. This is a classic pairing.",
+      suggestion: null,
+    },
+    "level-modulation": {
+      text: "Level into a Modulation input gives a unipolar offset. The modulation will stay above center and won't swing negative.",
+      suggestion: "If you want bipolar movement, try an LFO output instead.",
+    },
+    "audio-trigger": {
+      text: "Audio into a Trigger input fires on every waveform crossing, creating a frantic stuttering effect.",
+      suggestion: "If you want note-based gating, leave this unconnected (keyboard triggers automatically) or use a dedicated trigger module.",
+    },
+    "trigger-audio": {
+      text: "Trigger into an Audio input creates sparse clicks or pulses. The signal will be mostly silent with brief spikes.",
+      suggestion: "If you want a continuous tone, try an Oscillator or Noise source.",
+    },
+    "pitch-modulation": {
+      text: "Pitch into a Modulation input shifts the modulation center frequency based on note height.",
+      suggestion: "If you want rhythmic wobble, try an LFO output instead.",
+    },
+    "modulation-pitch": {
+      text: "Modulation into a Pitch input creates vibrato or pitch wobble. Great for expressive leads.",
+      suggestion: null,
+    },
+    "pitch-level": {
+      text: "Pitch into a Level input makes higher notes louder and lower notes quieter — a velocity-like effect.",
+      suggestion: "If you want consistent volume shaping, try an Envelope output instead.",
+    },
+    "level-pitch": {
+      text: "Level into a Pitch input shifts pitch by amplitude. Creates ring-modulation-like artifacts.",
+      suggestion: "If you want pitch glide or vibrato, try an LFO or dedicated pitch source.",
+    },
+    "modulation-audio": {
+      text: "Modulation into an Audio input is very quiet unless boosted. You'll hear a faint wobble, not a tone.",
+      suggestion: "If you want a sound source here, try an Oscillator or Noise module.",
+    },
+    "audio-modulation": {
+      text: "Audio into a Modulation input creates ring modulation / AM synthesis. Harsh, complex, and often dissonant.",
+      suggestion: "If you want smooth rhythmic shaping, try an LFO or Envelope output instead.",
+    },
+  },
+  mismatch: {
+    default: {
+      text: "This pairing is unusual. The signals are technically compatible, but the result may not be what you expect.",
+      suggestion: "Check the port's accepted types and try a matching source.",
+    },
+  },
+};
+
+function getCompatibilityLevel(sourceType, targetAccepts, targetSignalType) {
+  if (!Array.isArray(targetAccepts) || targetAccepts.length === 0) return "exact";
+  if (targetAccepts.includes(sourceType)) return "exact";
+  const compatKey = `${sourceType}-${targetSignalType || "audio"}`;
+  if (COMPATIBILITY_MESSAGES.compatible[compatKey]) return "compatible";
+  return "mismatch";
+}
+
+function getCompatibilityMessage(sourceType, targetSignalType) {
+  const compatKey = `${sourceType}-${targetSignalType || "audio"}`;
+  const entry = COMPATIBILITY_MESSAGES.compatible[compatKey] || COMPATIBILITY_MESSAGES.mismatch.default;
+  let text = entry.text;
+  if (entry.suggestion) {
+    text += " " + entry.suggestion;
+  }
+  return text;
+}
+
+function getCompatibility(sourceType, targetAccepts, targetSignalType) {
+  const level = getCompatibilityLevel(sourceType, targetAccepts, targetSignalType);
+  const message = level === "exact" ? null : getCompatibilityMessage(sourceType, targetSignalType);
+  return { level, message, sourceType, targetType: targetSignalType };
+}
+
 export class PatchBay {
   constructor(bridge, registry) {
     this.bridge = bridge;
@@ -83,14 +159,9 @@ export class PatchBay {
     const inputIdx = target.manifest.inputs.findIndex((i) => i.id === inputId);
     if (outputIdx === -1 || inputIdx === -1) throw new Error("PORT NOT FOUND");
 
-    // Rate validation: control→audio is allowed (modulation), audio→audio is allowed.
-    // audio→control and control→control both allowed (arbitrary mixing for now).
-    const outRate = source.manifest.outputs[outputIdx]?.type;
-    const inRate = target.manifest.inputs[inputIdx]?.type;
-    if (outRate === "audio" && inRate === "control") {
-      throw new Error(
-        `RATE MISMATCH: audio output "${outputId}" cannot connect to control input "${inputId}"`
-      );
+    const compat = this.getCompatibility(sourceId, outputId, targetId, inputId);
+    if (compat && compat.level === "mismatch") {
+      console.warn("COMPATIBILITY NOTE:", compat.message);
     }
 
     if (
@@ -102,6 +173,18 @@ export class PatchBay {
 
     source.addOutputConnection(outputId, targetId, inputId);
     target.addInputConnection(inputId, sourceId, outputId);
+  }
+
+  getCompatibility(sourceId, outputId, targetId, inputId) {
+    const source = this.modules.get(sourceId);
+    const target = this.modules.get(targetId);
+    if (!source || !target) return null;
+
+    const output = source.manifest.outputs.find((o) => o.id === outputId);
+    const input = target.manifest.inputs.find((i) => i.id === inputId);
+    if (!output || !input) return null;
+
+    return getCompatibility(output.signalType, input.accepts, input.signalType);
   }
 
   disconnect(sourceId, outputId, targetId, inputId) {

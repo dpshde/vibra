@@ -408,6 +408,38 @@ button[aria-pressed="true"] {
     border-color: var(--accent);
 }
 
+/* Port compatibility highlights during cable drag */
+.port-exact {
+    background: #00d4aa;
+    border-color: #00d4aa;
+    box-shadow: 0 0 6px #00d4aa;
+}
+
+.port-compatible {
+    background: #ffaa00;
+    border-color: #ffaa00;
+    box-shadow: 0 0 6px #ffaa00;
+}
+
+.port-mismatch {
+    background: #ff3333;
+    border-color: #ff3333;
+    box-shadow: 0 0 6px #ff3333;
+}
+
+/* Compatibility tooltip */
+.port-tooltip {
+    background: var(--card-bg);
+    color: var(--fg);
+    border: 1px solid var(--dim);
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 0.75rem;
+    max-width: 260px;
+    line-height: 1.4;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+
 .port-label {
     padding: 0 6px;
     text-transform: uppercase;

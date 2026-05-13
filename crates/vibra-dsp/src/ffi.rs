@@ -58,15 +58,20 @@ fn build_manifest_json() -> String {
             if j > 0 { s.push(','); }
             s.push_str("{\"id\":\""); s.push_str(p.id);
             s.push_str("\",\"name\":\""); s.push_str(p.name);
-            s.push_str("\",\"rate\":\""); s.push_str(p.rate.as_str());
-            s.push_str("\"}");
+            s.push_str("\",\"signalType\":\""); s.push_str(p.signal_type.as_str());
+            s.push_str("\",\"accepts\":[");
+            for (k, a) in p.accepts.iter().enumerate() {
+                if k > 0 { s.push(','); }
+                s.push('"'); s.push_str(a.as_str()); s.push('"');
+            }
+            s.push_str("]}");
         }
         s.push_str("],\"outputs\":[");
         for (j, p) in m.outputs.iter().enumerate() {
             if j > 0 { s.push(','); }
             s.push_str("{\"id\":\""); s.push_str(p.id);
             s.push_str("\",\"name\":\""); s.push_str(p.name);
-            s.push_str("\",\"rate\":\""); s.push_str(p.rate.as_str());
+            s.push_str("\",\"signalType\":\""); s.push_str(p.signal_type.as_str());
             s.push_str("\"}");
         }
         s.push_str("],\"parameters\":[");

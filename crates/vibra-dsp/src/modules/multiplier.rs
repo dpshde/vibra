@@ -1,4 +1,4 @@
-use super::{Module, ModuleKind, ModuleManifest, ParamDef, PortDef, PortRate, ParamUnit};
+use super::{Module, ModuleKind, ModuleManifest, ParamDef, PortDef, SignalType, ParamUnit};
 
 pub struct Multiplier {
     gain: f32,
@@ -11,10 +11,10 @@ impl Multiplier {
         category: "utility",
         kind: ModuleKind::Multiplier,
         inputs: &[
-            PortDef { id: "in", name: "In", rate: PortRate::Audio },
-            PortDef { id: "mod", name: "Mod", rate: PortRate::Audio },
+            PortDef { id: "a", name: "Sound", signal_type: SignalType::Audio, accepts: &[SignalType::Audio] },
+            PortDef { id: "b", name: "Mod", signal_type: SignalType::Level, accepts: &[SignalType::Level, SignalType::Modulation] },
         ],
-        outputs: &[PortDef { id: "out", name: "Out", rate: PortRate::Audio }],
+        outputs: &[PortDef { id: "out", name: "Out", signal_type: SignalType::Audio, accepts: &[] }],
         parameters: &[
             ParamDef { id: "gain", name: "Gain", description: "Output scaling.", unit: ParamUnit::Ratio, min: 0.0, max: 2.0, default: 1.0, enum_values: &[] },
         ],

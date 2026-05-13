@@ -1,4 +1,4 @@
-use super::{Module, ModuleKind, ModuleManifest, ParamDef, PortDef, PortRate, ParamUnit};
+use super::{Module, ModuleKind, ModuleManifest, ParamDef, PortDef, SignalType, ParamUnit};
 
 const NUM_COMBS: usize = 8;
 const NUM_ALLPASSES: usize = 4;
@@ -100,8 +100,8 @@ impl Reverb {
         name: "Reverb",
         category: "effect",
         kind: ModuleKind::Reverb,
-        inputs: &[PortDef { id: "in", name: "In", rate: PortRate::Audio }],
-        outputs: &[PortDef { id: "out", name: "Out", rate: PortRate::Audio }],
+        inputs: &[PortDef { id: "in", name: "In", signal_type: SignalType::Audio, accepts: &[SignalType::Audio] }],
+        outputs: &[PortDef { id: "out", name: "Out", signal_type: SignalType::Audio, accepts: &[] }],
         parameters: &[
             ParamDef { id: "size", name: "Room Size", description: "How large the simulated room is. Larger = longer decay, more spacious.", unit: ParamUnit::Ratio, min: 0.0, max: 1.0, default: 0.5, enum_values: &[] },
             ParamDef { id: "damp", name: "Damp", description: "High-frequency damping. Higher = darker, more muffled reverb.", unit: ParamUnit::Ratio, min: 0.0, max: 1.0, default: 0.5, enum_values: &[] },
