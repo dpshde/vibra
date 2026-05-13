@@ -24,6 +24,7 @@ import noiseManifest from "./synth/builtins/noise.js";
 import envManifest from "./synth/builtins/envelope.js";
 import delayManifest from "./synth/builtins/delay.js";
 import multManifest from "./synth/builtins/multiplier.js";
+import reverbManifest from "./synth/builtins/reverb.js";
 
 const registry = new BuiltinRegistry();
 registry.register(oscManifest);
@@ -36,6 +37,7 @@ registry.register(noiseManifest);
 registry.register(envManifest);
 registry.register(delayManifest);
 registry.register(multManifest);
+registry.register(reverbManifest);
 
 let ctx = null;
 let patchBay = null;

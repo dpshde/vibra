@@ -11,6 +11,7 @@ pub enum ModuleKind {
     Delay = 8,
     Multiplier = 9,
     Pan = 10,
+    Reverb = 11,
 }
 
 impl ModuleKind {
@@ -27,6 +28,7 @@ impl ModuleKind {
             8 => Self::Delay,
             9 => Self::Multiplier,
             10 => Self::Pan,
+            11 => Self::Reverb,
             _ => Self::Destination,
         }
     }
@@ -96,6 +98,7 @@ mod multiplier;
 mod noise;
 mod osc;
 mod pan;
+mod reverb;
 mod scope;
 
 pub use delay::Delay;
@@ -107,6 +110,7 @@ pub use multiplier::Multiplier;
 pub use noise::Noise;
 pub use osc::Oscillator;
 pub use pan::Pan;
+pub use reverb::Reverb;
 pub use scope::Scope;
 
 pub fn create_module(kind: ModuleKind, sample_rate: f32, block_size: usize) -> Box<dyn Module> {
@@ -118,7 +122,7 @@ pub fn registry() -> &'static [ModuleManifest] {
     &[Oscillator::MANIFEST, Gain::MANIFEST, BiquadFilter::MANIFEST,
       Adsr::MANIFEST, Scope::MANIFEST, DESTINATION_MANIFEST,
       Lfo::MANIFEST, Noise::MANIFEST, Delay::MANIFEST,
-      Multiplier::MANIFEST, Pan::MANIFEST]
+      Multiplier::MANIFEST, Pan::MANIFEST, Reverb::MANIFEST]
 }
 
 pub fn manifest_for(kind: ModuleKind) -> &'static ModuleManifest {
@@ -181,6 +185,7 @@ pub fn default_voice_scope(kind: ModuleKind) -> VoiceScope {
         ModuleKind::Lfo
         | ModuleKind::Delay
         | ModuleKind::Scope
-        | ModuleKind::Destination => VoiceScope::Global,
+        | ModuleKind::Destination
+        | ModuleKind::Reverb => VoiceScope::Global,
     }
 }

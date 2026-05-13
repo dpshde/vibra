@@ -484,6 +484,7 @@ button[aria-pressed="true"] {
     -webkit-appearance: none;
     width: 12px;
     height: 14px;
+    margin-top: -5px;
     background: var(--fg);
     border: none;
     border-radius: 3px;
@@ -493,6 +494,7 @@ button[aria-pressed="true"] {
 .param-knob::-moz-range-thumb {
     width: 12px;
     height: 14px;
+    margin-top: -5px;
     background: var(--fg);
     border: none;
     border-radius: 3px;

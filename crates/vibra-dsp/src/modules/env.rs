@@ -6,6 +6,7 @@ pub struct Adsr {
     decay: f32,
     sustain: f32,
     release: f32,
+    soft_attack: bool,
     state: AdsrState,
     level: f32,
     gate: f32,
@@ -34,6 +35,7 @@ impl Adsr {
             ParamDef { id: "decay", name: "Decay", description: "How quickly the sound falls from peak to sustain.", unit: ParamUnit::S, min: 0.001, max: 5.0, default: 0.3, enum_values: &[] },
             ParamDef { id: "sustain", name: "Sustain", description: "The volume level held while a key is pressed.", unit: ParamUnit::Ratio, min: 0.0, max: 1.0, default: 0.5, enum_values: &[] },
             ParamDef { id: "release", name: "Release", description: "How long the sound takes to fade after release.", unit: ParamUnit::S, min: 0.001, max: 10.0, default: 0.5, enum_values: &[] },
+            ParamDef { id: "soft_attack", name: "Soft Attack", description: "Use a smooth exponential attack curve to prevent clicking/clipping on fast attacks.", unit: ParamUnit::Boolean, min: 0.0, max: 1.0, default: 1.0, enum_values: &["Off", "On"] },
         ],
         voice_scope: super::VoiceScope::PerVoice,
         create: |sr, _bs| Box::new(Adsr::new(sr)),
@@ -46,6 +48,7 @@ impl Adsr {
             decay: 0.3,
             sustain: 0.5,
             release: 0.5,
+            soft_attack: true,
             state: AdsrState::Idle,
             level: 0.0,
             gate: 0.0,
@@ -74,10 +77,18 @@ impl Module for Adsr {
             match self.state {
                 AdsrState::Idle => { self.level = 0.0; }
                 AdsrState::Attack => {
-                    self.level += self.rate(self.attack);
-                    if self.level >= 1.0 {
-                        self.level = 1.0;
-                        self.state = AdsrState::Decay;
+                    if self.soft_attack {
+                        self.level += (1.0 - self.level) * self.rate(self.attack) * 5.0;
+                        if self.level >= 0.999 {
+                            self.level = 1.0;
+                            self.state = AdsrState::Decay;
+                        }
+                    } else {
+                        self.level += self.rate(self.attack);
+                        if self.level >= 1.0 {
+                            self.level = 1.0;
+                            self.state = AdsrState::Decay;
+                        }
                     }
                 }
                 AdsrState::Decay => {
@@ -106,6 +117,7 @@ impl Module for Adsr {
             1 => self.decay = value.max(0.001),
             2 => self.sustain = value.max(0.0).min(1.0),
             3 => self.release = value.max(0.001),
+            4 => self.soft_attack = value >= 0.5,
             _ => {}
         }
     }

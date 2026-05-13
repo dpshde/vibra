@@ -71,6 +71,19 @@ export default {
       default: 0.5,
       paramId: 3,
     },
+    {
+      id: "soft_attack",
+      name: "Soft Attack",
+      description: "Use a smooth exponential attack curve to prevent clicking/clipping on fast attacks.",
+      type: "enum",
+      unit: "boolean",
+      min: 0,
+      max: 1,
+      step: 1,
+      default: 1,
+      paramId: 4,
+      values: ["Off", "On"],
+    },
   ],
   create() {
     return null;
