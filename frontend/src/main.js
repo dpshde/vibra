@@ -14,6 +14,7 @@ import { loadNoisePercussion } from "./examples/noise-perc.js";
 import { loadAcidBass } from "./examples/acid-bass.js";
 import { loadJunoPad } from "./examples/juno-pad.js";
 import { loadFmBell } from "./examples/fm-bell.js";
+import { loadSpaceDrone } from "./examples/space-drone.js";
 import { loadPlugins } from "./plugin/sdk.js";
 import { exportOSP, importOSP } from "./patch-format/osp.js";
 // Built-in manifests
@@ -259,6 +260,9 @@ async function initAudio() {
           break;
         case "fmbell":
           loadFmBell(patchBay, graph);
+          break;
+        case "space":
+          loadSpaceDrone(patchBay, graph);
           break;
       }
       updatePatchWarning();
