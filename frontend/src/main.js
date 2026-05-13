@@ -15,6 +15,7 @@ import { loadAcidBass } from "./examples/acid-bass.js";
 import { loadJunoPad } from "./examples/juno-pad.js";
 import { loadFmBell } from "./examples/fm-bell.js";
 import { loadSpaceDrone } from "./examples/space-drone.js";
+import { loadMinecraftPluck } from "./examples/minecraft-pluck.js";
 import { loadPlugins } from "./plugin/sdk.js";
 import { exportOSP, importOSP } from "./patch-format/osp.js";
 // Built-in manifests
@@ -263,6 +264,9 @@ async function initAudio() {
           break;
         case "space":
           loadSpaceDrone(patchBay, graph);
+          break;
+        case "minecraft":
+          loadMinecraftPluck(patchBay, graph);
           break;
       }
       updatePatchWarning();
